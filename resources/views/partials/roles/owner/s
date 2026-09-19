@@ -1,0 +1,4379 @@
+Bisa. Dan menurut saya sistem yang Anda bayangkan **sudah cukup besar sehingga jangan dibuat sebagai satu menu “Uang Kas” saja**. Arsitektur yang tepat adalah membuat **Financial & Membership Compliance Engine UKM**: satu mesin yang mengatur kas rutin, tagihan kegiatan, generasi anggota, jatuh tempo, denda, pembayaran, poin, notifikasi, pembekuan akun, reaktivasi, sponsor, dan audit.
+
+Ada satu hal yang perlu saya luruskan dulu: saya akan membaca angka `5rp / 3rp / 7rp / 20rp / 100rp` yang Anda tulis sebagai **Rp5.000 / Rp3.000 / Rp7.000 / Rp20.000 / Rp100.000**, karena konteksnya menunjukkan nilai rupiah ribuan.
+
+## 1. Konsep inti yang saya sarankan
+
+Jangan membuat aturan seperti:
+
+> Semua anggota bayar Rp5.000 tanggal 28.
+
+menjadi hard-code.
+
+Buat sistem:
+
+**Skema Keuangan → Generasi → Periode → Tagihan → Jatuh Tempo → Pembayaran → Poin → Sanksi → Audit**
+
+Dengan begitu:
+
+* Generasi 1 bisa Rp5.000/bulan.
+* Generasi 2 bisa Rp10.000/bulan.
+* Generasi 3 bisa Rp10.000/2 minggu.
+* Generasi 4 bisa dibuat aturan baru.
+* Generasi lama **tetap mengikuti janji/skema lamanya**.
+* Perubahan aturan baru berlaku mulai periode tertentu dan tidak merusak histori.
+
+---
+
+# 2. Generasi anggota
+
+Ini menurut saya wajib menjadi fondasi.
+
+Contoh:
+
+| Generasi   | Tahun masuk | Skema             |
+| ---------- | ----------- | ----------------- |
+| Generasi 1 | 2026        | Rp5.000/bulan     |
+| Generasi 2 | 2027        | Rp10.000/bulan    |
+| Generasi 3 | 2028        | Rp10.000/2 minggu |
+| Generasi 4 | 2029        | Rp15.000/bulan    |
+
+Tetapi jangan menyimpan hanya:
+
+```text
+generation = 1
+```
+
+Buat juga **Fee Plan**.
+
+Contoh:
+
+```text
+Generation
+- id
+- code
+- name
+- entry_period
+- status
+
+FeePlan
+- id
+- generation_id
+- name
+- amount
+- frequency
+- effective_from
+- effective_until
+- due_day
+- status
+```
+
+Misalnya:
+
+```text
+GEN-001
+Generasi Pendiri
+Rp5.000
+monthly
+tanggal 28
+effective 2026-01-01
+```
+
+Kemudian:
+
+```text
+GEN-002
+Generasi 2
+Rp10.000
+monthly
+tanggal 28
+effective 2027-01-01
+```
+
+Dengan begitu janji kepada generasi pertama tidak ikut berubah ketika generasi kedua dinaikkan.
+
+---
+
+# 3. Jangan mengubah tagihan lama
+
+Ini sangat penting.
+
+Misalnya Generasi 1:
+
+```text
+2026 Januari    Rp5.000
+2026 Februari   Rp5.000
+2026 Maret      Rp5.000
+```
+
+Kemudian tahun 2027 Anda mengubah generasi berikutnya menjadi:
+
+```text
+Rp10.000
+```
+
+Sistem **tidak boleh menghitung ulang histori Generasi 1 menjadi Rp10.000**.
+
+Setiap tagihan harus menjadi snapshot.
+
+Contoh:
+
+```text
+invoice
+amount = 5000
+generation_id = 1
+fee_plan_id = 1
+period = 2026-03
+```
+
+Jadi walaupun Fee Plan nantinya diubah, tagihan lama tetap Rp5.000.
+
+---
+
+# 4. Sistem tanggal jatuh tempo tanggal 28
+
+Ini bagian yang menurut saya harus dibuat cerdas.
+
+Anda menetapkan:
+
+> Tanggal 28 = tanggal jatuh tempo standar.
+
+Tetapi tanggal tersebut dapat digeser berdasarkan kalender UKM.
+
+Jadi sistem memiliki:
+
+### Kalender UKM
+
+```text
+Academic Calendar
+UKM Activity Calendar
+National Holiday
+UTS
+UAS
+Academic Holiday
+Special Holiday
+Non-active Day
+```
+
+Contoh:
+
+Tanggal:
+
+**28 Februari 2027**
+
+ternyata hari:
+
+**Sabtu**
+
+dan UKM tidak aktif.
+
+Maka sistem mencari:
+
+> hari kegiatan UKM aktif terdekat berikutnya.
+
+Misalnya:
+
+**Senin, 1 Maret 2027**
+
+maka:
+
+```text
+Tanggal standar : 28 Februari
+Tanggal aktual  : 1 Maret
+Alasan           : Hari nonaktif
+```
+
+---
+
+# 5. Jangan hanya menyimpan tanggal
+
+Saya sarankan setiap tagihan menyimpan:
+
+```text
+standard_due_date
+adjusted_due_date
+final_due_date
+due_date_reason
+calendar_rule_id
+approved_by
+approved_at
+```
+
+Jadi sistem tahu:
+
+> Kenapa tanggalnya berubah?
+
+Contohnya:
+
+```text
+Standar     : 28-02-2027
+Aktual      : 01-03-2027
+Alasan      : Sabtu + nonaktif UKM
+Status      : APPROVED
+Disetujui   : Ketua
+```
+
+---
+
+# 6. Siapa yang boleh menggeser jatuh tempo?
+
+Jangan semua pengurus bisa.
+
+Saya sarankan:
+
+### Owner
+
+Akses penuh.
+
+### Superadmin
+
+Akses penuh operasional.
+
+### Ketua
+
+Boleh mengusulkan dan menyetujui perubahan tertentu.
+
+### Bendahara
+
+Boleh mengelola operasional keuangan, tetapi perubahan kebijakan besar memerlukan persetujuan.
+
+### Pengurus lain
+
+Hanya melihat jika diberi izin.
+
+### Anggota
+
+Tidak dapat mengubah apapun.
+
+---
+
+# 7. Sistem persetujuan perubahan jatuh tempo
+
+Ini lebih aman daripada langsung edit.
+
+Contoh:
+
+```text
+Bendahara mengajukan:
+
+28 Desember
+↓
+30 Desember
+
+Alasan:
+Libur akademik
+
+↓
+Ketua meninjau
+
+↓
+SETUJUI
+
+↓
+Sistem mengunci perubahan
+```
+
+Buat status:
+
+```text
+draft
+pending_approval
+approved
+rejected
+cancelled
+```
+
+---
+
+# 8. Mesin keterlambatan
+
+Saya sarankan **jangan menggunakan hari kalender murni**.
+
+Gunakan:
+
+> **Hari keterlambatan efektif**
+
+terutama karena UKM mempunyai hari nonaktif.
+
+Misalnya:
+
+```text
+Due date = Senin
+
+Hari 1 = Selasa
+Hari 2 = Rabu
+Hari 3 = Kamis
+Hari 4 = Jumat
+```
+
+Hari Sabtu/Minggu/nonaktif bisa dilewati sesuai aturan kebijakan.
+
+Ini membuat aturan Anda jauh lebih konsisten.
+
+---
+
+# 9. Tahapan keterlambatan yang saya sarankan
+
+Saya akan implementasikan seperti ini.
+
+### Hari 0 — tepat waktu
+
+```text
+Tagihan = Rp5.000
+Denda = Rp0
+Peringatan = 0
+```
+
+Status:
+
+**TEPAT WAKTU**
+
+---
+
+### Hari 1
+
+```text
+Kas         Rp5.000
+Denda       Rp0
+Peringatan  1
+```
+
+Tidak ada denda.
+
+Notifikasi:
+
+> Pengingat Pembayaran Kas #1
+
+Dan pesan privat dari Ketua/Bendahara.
+
+---
+
+### Hari 2
+
+```text
+Kas         Rp5.000
+Denda       Rp0
+Peringatan  2
+```
+
+Masih tidak ada denda.
+
+---
+
+### Hari 3
+
+```text
+Kas         Rp5.000
+Denda awal  Rp3.000
+```
+
+Total:
+
+**Rp8.000**
+
+Status:
+
+```text
+LATE_LEVEL_3
+```
+
+Notifikasi merah/oranye.
+
+Pesan privat Ketua/Bendahara.
+
+---
+
+# 10. Hari 4 sampai hari 10
+
+Di sini saya akan memakai angka yang konsisten dengan perhitungan Anda:
+
+**Rp1.000 per hari**
+
+Hari 4:
+
+```text
+Rp5.000
++ Rp3.000
++ Rp1.000
+= Rp9.000
+```
+
+Hari 5:
+
+```text
+Rp10.000
+```
+
+Hari 6:
+
+```text
+Rp11.000
+```
+
+Hari 7:
+
+```text
+Rp12.000
+```
+
+Hari 8:
+
+```text
+Rp13.000
+```
+
+Hari 9:
+
+```text
+Rp14.000
+```
+
+Hari 10:
+
+```text
+Rp15.000
+```
+
+Jadi maksimal:
+
+**Rp15.000**
+
+dengan komposisi:
+
+```text
+Kas                 Rp5.000
+Denda awal          Rp3.000
+Denda hari 4–10     Rp7.000
+--------------------------------
+TOTAL               Rp15.000
+```
+
+Ini sesuai dengan logika yang Anda jelaskan.
+
+---
+
+# 11. Setelah hari ke-10 jangan terus menambah denda
+
+Ini penting.
+
+Saya justru **tidak menyarankan denda terus membesar tanpa batas**.
+
+Mulai hari 11 masuk ke:
+
+## Status pembinaan / overdue serius
+
+Misalnya:
+
+```text
+Hari 11–20
+Tidak ada tambahan denda harian.
+```
+
+Tetapi:
+
+* notifikasi merah
+* pesan privat
+* kewajiban komunikasi
+* pertemuan
+* evaluasi tanggung jawab anggota
+* keputusan pengurus
+
+Dengan demikian Anda tidak membuat sistem menjadi seperti pinjaman berbunga.
+
+---
+
+# 12. Hari 11–20
+
+Saya menyarankan menu khusus:
+
+## Pusat Tunggakan & Pembinaan
+
+Isinya:
+
+```text
+Jumlah kasus
+Anggota terlambat
+Pengurus terlambat
+Total tagihan
+Total denda
+Hari keterlambatan
+Status komunikasi
+Status pertemuan
+Keputusan pengurus
+```
+
+Contoh:
+
+```text
+Muhammad
+Kas     : Rp5.000
+Denda   : Rp10.000
+Total   : Rp15.000
+Late    : 14 hari
+
+Status:
+Pembinaan BPH
+```
+
+---
+
+# 13. Notifikasi merah
+
+Saya setuju dengan ide Anda.
+
+Tetapi jangan membuatnya menjadi notifikasi yang "tidak bisa dilihat".
+
+Lebih baik:
+
+## Critical Financial Notice
+
+Muncul di:
+
+**Dashboard**
+
+**Notifikasi**
+
+**Keuangan**
+
+**Profil**
+
+dan badge:
+
+```text
+🔴 1 Masalah Pembayaran
+```
+
+Pesannya:
+
+> Pembayaran kas Anda telah melewati batas pembinaan. Silakan hubungi Bendahara/Ketua.
+
+---
+
+# 14. Hari ke-20
+
+Pada hari ke-20 sistem **tidak boleh otomatis membekukan akun hanya berdasarkan algoritma**.
+
+Sistem harus mengubah kasus menjadi:
+
+```text
+REVIEW_REQUIRED
+```
+
+Kemudian:
+
+```text
+Ketua
++
+BPH
++
+Bendahara
+```
+
+melakukan keputusan.
+
+Pilihan:
+
+```text
+beri kelonggaran
+perpanjang
+angsuran
+tetap aktif
+bekukan sementara
+blacklist sementara
+```
+
+---
+
+# 15. Freeze vs blacklist
+
+Jangan gabungkan menjadi satu status.
+
+Buat:
+
+```text
+ACTIVE
+PAYMENT_OVERDUE
+UNDER_REVIEW
+SUSPENDED
+BLACKLISTED
+RESIGNED
+REACTIVATION_PENDING
+REACTIVATED
+```
+
+### Suspended
+
+Akun masih ada tetapi akses dibatasi.
+
+### Blacklisted
+
+Akun tidak dapat menggunakan fitur UKM tertentu atau seluruh sistem sesuai kebijakan.
+
+---
+
+# 16. Jangan hapus akun anggota
+
+Ini penting untuk sistem Anda.
+
+Jangan:
+
+```text
+DELETE user
+```
+
+karena masalah kas.
+
+Gunakan:
+
+```text
+status = suspended
+```
+
+atau:
+
+```text
+status = blacklisted
+```
+
+Histori:
+
+* pembayaran
+* denda
+* pesan
+* keputusan pengurus
+* generasi
+* keanggotaan
+
+tetap tersimpan.
+
+---
+
+# 17. Sistem reaktivasi yang Anda minta
+
+Ini justru sangat bagus.
+
+Buat:
+
+# Reactivation Request
+
+Anggota mengajukan:
+
+```text
+Alasan ingin kembali
+Komitmen
+Tanggal kesanggupan bayar
+Bukti/penjelasan
+```
+
+Kemudian:
+
+```text
+PENDING
+↓
+REVIEW KETUA
+↓
+REVIEW BPH
+↓
+APPROVED / REJECTED
+```
+
+Jika disetujui:
+
+```text
+BLACKLISTED
+↓
+REACTIVATED
+↓
+ACTIVE
+```
+
+Tetapi status:
+
+> tunggakan telah diselesaikan
+
+harus jelas di histori.
+
+---
+
+# 18. Sistem pembayaran besar di muka
+
+Ini **bisa dan sangat bagus**.
+
+Misalnya kas:
+
+**Rp5.000/bulan**
+
+Anggota ingin membayar:
+
+**Rp50.000**
+
+Sistem menghitung:
+
+```text
+Rp50.000 / Rp5.000
+= 10 bulan
+```
+
+Kemudian:
+
+```text
+Bulan 1   PAID
+Bulan 2   PAID
+Bulan 3   PAID
+...
+Bulan 10  PAID
+```
+
+Anggota tidak perlu melakukan pembayaran ulang sampai periode berikutnya.
+
+---
+
+# 19. Jangan menyimpan "saldo kas" saja
+
+Lebih aman menggunakan:
+
+## Prepaid Balance
+
+Contoh:
+
+```text
+Total pembayaran   Rp50.000
+Tarif bulanan       Rp5.000
+Covered             10 bulan
+```
+
+Sistem membuat alokasi:
+
+```text
+2027-01 Rp5.000
+2027-02 Rp5.000
+2027-03 Rp5.000
+...
+```
+
+Sehingga jelas uang Rp50.000 itu digunakan untuk bulan apa saja.
+
+---
+
+# 20. Sistem poin
+
+Saya sangat menyarankan:
+
+> **Jangan memberikan poin berdasarkan nominal pembayaran.**
+
+Ini penting.
+
+Kalau orang membayar Rp50.000 sekaligus, jangan otomatis mendapatkan 10× poin dibanding orang yang membayar Rp5.000 tepat waktu.
+
+Karena tujuan poin seharusnya:
+
+**kedisiplinan dan kontribusi**, bukan kemampuan membayar besar.
+
+---
+
+# 21. Skema poin yang lebih sehat
+
+Contoh:
+
+### Tepat waktu
+
+```text
++10 poin
+```
+
+### Membayar sebelum jatuh tempo
+
+```text
++12 poin
+```
+
+### Membayar beberapa bulan di muka
+
+Misalnya maksimal:
+
+```text
++20 bonus poin
+```
+
+walaupun membayar 10 bulan.
+
+Jadi tidak bisa melakukan:
+
+```text
+Bayar Rp1.000.000
+↓
++2.000 poin
+```
+
+Itu berbahaya untuk sistem gamifikasi.
+
+---
+
+# 22. Bagaimana jika telat?
+
+Saya lebih menyarankan **tidak langsung mengurangi poin** pada hari 1–20.
+
+Gunakan:
+
+```text
+hari 1–2
+tidak mendapat bonus ketepatan waktu
+
+hari 3–10
+tidak mendapat bonus
+status disiplin turun
+
+hari 11–20
+masuk pembinaan
+
+setelah keputusan pengurus:
+poin dapat dikurangi sesuai kebijakan
+```
+
+Jadi poin tidak menjadi senjata yang terlalu menghukum.
+
+---
+
+# 23. Saya bahkan menyarankan dua skor
+
+Daripada hanya `points`, buat:
+
+### Reward Points
+
+Untuk leaderboard/gamifikasi.
+
+### Compliance Score
+
+Untuk disiplin.
+
+Contoh:
+
+```text
+Reward Point      : 250
+Compliance Score  : 82%
+```
+
+Dengan begitu orang yang punya banyak poin belum tentu paling disiplin.
+
+---
+
+# 24. Anti manipulasi poin
+
+Ini sangat penting.
+
+Jangan:
+
+```text
+users.points = users.points + 10
+```
+
+secara sembarangan.
+
+Buat:
+
+## Point Ledger
+
+Contoh:
+
+```text
+point_transactions
+
+id
+user_id
+type
+amount
+reason
+source_type
+source_id
+created_by
+created_at
+```
+
+Contoh:
+
+```text
++10
+ON_TIME_PAYMENT
+invoice #10291
+```
+
+dan:
+
+```text
+-5
+DISCIPLINE_ADJUSTMENT
+case #22
+approved_by = ketua
+```
+
+Poin kemudian dihitung dari ledger.
+
+---
+
+# 25. Owner tidak boleh sembarang mengedit histori
+
+Saya tahu Anda ingin owner mempunyai akses penuh.
+
+Tetapi bahkan owner sebaiknya:
+
+**tidak mengubah transaksi lama secara diam-diam.**
+
+Lebih baik:
+
+```text
+Adjustment
+↓
+Alasan
+↓
+Approval
+↓
+Audit Log
+```
+
+Dengan begitu semua perubahan punya jejak.
+
+---
+
+# 26. Pembayaran kas dan pembayaran kegiatan harus dipisahkan
+
+Ini sangat penting dari ide ID card, reuni, event, dll.
+
+Jangan semuanya masuk ke tabel:
+
+```text
+kas
+```
+
+Buat konsep:
+
+# Financial Obligation
+
+Contohnya:
+
+```text
+MONTHLY_CASH
+ID_CARD
+EVENT
+REUNION
+MERCHANDISE
+REGISTRATION
+OTHER
+```
+
+---
+
+# 27. Contoh pembayaran ID Card
+
+Buat:
+
+## Campaign / Collection
+
+```text
+Nama:
+Pembuatan ID Card UKM
+
+Biaya:
+Rp20.000
+
+Wajib:
+Generasi 2
+
+Mulai:
+1 Oktober
+
+Berakhir:
+10 Oktober
+```
+
+Kemudian sistem membuat kewajiban:
+
+```text
+Generasi 2
+↓
+semua anggota aktif
+↓
+Rp20.000
+```
+
+---
+
+# 28. Bisa juga pilih akun tertentu
+
+Ini bahkan lebih fleksibel.
+
+Target:
+
+```text
+Semua anggota
+Generasi tertentu
+Semua pengurus
+Kelompok tertentu
+Tim tertentu
+Akun tertentu
+```
+
+Contoh:
+
+```text
+Target:
+
+[✓] Generasi 1
+[✓] Generasi 2
+[ ] Generasi 3
+
+Khusus:
+Muhammad
+Andi
+Budi
+```
+
+---
+
+# 29. Wajib atau opsional
+
+Setiap tagihan perlu punya:
+
+```text
+required = true
+```
+
+atau:
+
+```text
+required = false
+```
+
+Contoh:
+
+### ID Card
+
+```text
+required = true
+```
+
+### Reuni
+
+```text
+required = false
+```
+
+Anggota boleh:
+
+```text
+ikut
+tidak ikut
+```
+
+---
+
+# 30. Setelah bayar, jangan bisa membayar dua kali
+
+Sistem membuat:
+
+```text
+Participation
+```
+
+dan:
+
+```text
+Payment Status
+```
+
+Misalnya:
+
+```text
+REUNION 2027
+
+Rp100.000
+
+Muhammad
+
+UNPAID
+```
+
+Setelah berhasil:
+
+```text
+PAID
+```
+
+Tombol pembayaran menjadi:
+
+```text
+✓ Sudah Dibayar
+```
+
+dan tidak bisa membuat transaksi kedua.
+
+Kecuali:
+
+```text
+payment_failed
+payment_expired
+payment_cancelled
+refund
+```
+
+---
+
+# 31. Jika pembayaran gagal
+
+Status jangan langsung:
+
+```text
+PAID
+```
+
+Gunakan:
+
+```text
+PENDING
+PROCESSING
+PAID
+FAILED
+EXPIRED
+CANCELLED
+REFUNDED
+MANUAL_VERIFIED
+```
+
+---
+
+# 32. Pembayaran online
+
+Untuk bagian GoPay, OVO, DANA, QRIS, transfer bank, dan ATM, **jangan membuat integrasi satu per satu langsung ke aplikasi UKM**.
+
+Lebih aman menggunakan **payment gateway**.
+
+Saat ini Xendit menyediakan kanal Indonesia seperti virtual account bank, QRIS, serta e-wallet termasuk OVO, DANA, dan GoPay; Xendit juga menyediakan notifikasi transaksi secara real-time. ([Xendit Help Center][1])
+
+Xendit juga mendukung sejumlah Virtual Account bank Indonesia seperti BCA, BNI, Mandiri, BRI, BSI, CIMB, Permata dan lainnya. ([Xendit Help Center][2])
+
+Midtrans juga mendukung QRIS; dokumentasinya menjelaskan alur charge API dan notifikasi pembayaran. QRIS sendiri memungkinkan pembayaran melalui aplikasi pendukung seperti GoPay, OVO, DANA dan mobile banking. ([Midtrans Documentation][3])
+
+Jadi arsitekturnya:
+
+```text
+Anggota
+   ↓
+Website UKM
+   ↓
+Payment Gateway
+   ↓
+GoPay / OVO / DANA / QRIS / Bank / VA
+   ↓
+Payment Gateway
+   ↓
+Webhook
+   ↓
+Laravel
+   ↓
+Database
+   ↓
+Invoice = PAID
+```
+
+---
+
+# 33. ATM juga bisa
+
+Jangan membuat "ATM integration" terpisah.
+
+Gunakan:
+
+## Virtual Account
+
+Contoh:
+
+```text
+Bank Transfer
+↓
+Virtual Account
+↓
+ATM / Mobile Banking / Internet Banking
+↓
+Payment Gateway
+↓
+Webhook
+↓
+PAID
+```
+
+Ini lebih baik daripada meminta anggota transfer ke rekening biasa lalu bendahara mengecek satu per satu.
+
+---
+
+# 34. Cash tetap harus tersedia
+
+Anda tetap perlu:
+
+### CASH
+
+Untuk pembayaran langsung ke bendahara.
+
+Tetapi pembayaran cash harus:
+
+```text
+Pending Verification
+```
+
+sampai bendahara mengonfirmasi.
+
+Lebih bagus lagi:
+
+```text
+Cash Collection ID
+Receipt Number
+Collected By
+Verified By
+Date
+Amount
+```
+
+---
+
+# 35. Pembayaran manual
+
+Misalnya sistem online gagal.
+
+Anggota dapat mengajukan:
+
+```text
+Manual Payment Request
+```
+
+Bendahara memasukkan:
+
+```text
+metode
+nominal
+tanggal
+reference
+catatan
+```
+
+Kemudian:
+
+```text
+Bendahara input
+↓
+Superadmin/Owner verifikasi
+↓
+PAID
+```
+
+Untuk nominal tertentu, Anda bahkan bisa menerapkan **dual approval**.
+
+---
+
+# 36. Jangan menganggap uang "masuk database" berarti uang masuk rekening
+Ini pemisahan yang penting.
+Database menyimpan:
+```text
+Payment Record
+``
+sedangkan uang secara fisik/elektronik berada pada:
+```text
+rekening / merchant / settlement account
+```
+
+Payment gateway memberikan status transaksi dan kemudian proses settlement/rekonsiliasi berjalan sesuai penyedia. Xendit, misalnya, menyebut adanya real-time payment notifications serta settlement dan reconciliation. ([Xendit][4])
+
+Jadi sistem UKM harus punya:
+
+```text
+Transaction
+Payment
+Settlement
+Ledger
+```
+
+secara terpisah.
+
+---
+
+# 37. Dashboard keuangan
+
+Saya menyarankan satu dashboard:
+
+# Keuangan UKM
+
+Card:
+
+```text
+Saldo Kas
+Rp12.450.000
+
+Kas Bulan Ini
+Rp1.250.000
+
+Tunggakan
+Rp350.000
+
+Denda
+Rp70.000
+
+Pembayaran Hari Ini
+Rp450.000
+
+Tagihan Berjalan
+127
+
+Anggota Menunggak
+14
+```
+
+---
+
+# 38. Menu keuangan
+
+Menurut saya struktur menunya:
+
+```text
+KEUANGAN
+
+Dashboard Keuangan
+├── Uang Kas
+├── Tagihan
+├── Pembayaran
+├── Pembayaran Manual
+├── Rekonsiliasi
+├── Pencairan/Settlement
+├── Denda
+├── Tunggakan
+├── Pembinaan
+├── Poin
+├── Laporan Keuangan
+├── Audit Keuangan
+└── Pengaturan Keuangan
+```
+
+---
+
+# 39. Submenu Uang Kas
+
+```text
+Kas Aktif
+Riwayat Kas
+Skema Kas
+Generasi
+Jatuh Tempo
+Kalender UKM
+Denda
+Pengecualian
+```
+
+---
+
+# 40. Pengumuman keuangan
+
+Ini juga jangan dibuat khusus kas.
+
+Buat:
+
+# Financial Campaign / Announcement
+
+Contoh:
+
+```text
+Pembuatan ID Card 2027
+```
+
+atau:
+
+```text
+Reuni UKM Programming
+```
+
+atau:
+
+```text
+Pembelian Jaket
+```
+
+atau:
+
+```text
+Event Competition
+```
+
+---
+
+# 41. Setiap Campaign punya konfigurasi
+
+```text
+Campaign
+- title
+- description
+- category
+- amount
+- payment_type
+- required
+- target_type
+- target_generation
+- target_members
+- start_at
+- due_at
+- allow_installment
+- allow_pre_payment
+- max_payment
+- status
+```
+
+---
+
+# 42. Bisa untuk event
+
+Misalnya:
+
+**Seminar Programming**
+
+```text
+Biaya: Rp25.000
+Target: Generasi 1 + 2
+Wajib: Tidak
+Deadline: 10 November
+```
+
+Sistem membuat:
+
+```text
+Not Interested
+Unpaid
+Paid
+Cancelled
+Refunded
+```
+
+---
+
+# 43. Sponsor juga masuk sistem
+
+Ini saya pisahkan dari pembayaran anggota.
+
+Buat:
+
+# Sponsor & Partnership
+
+```text
+Sponsor
+Partnership
+Donasi
+Bantuan
+Pendapatan Event
+Pendapatan Merchandise
+```
+
+Contoh sponsor:
+
+```text
+Nama perusahaan
+Kontak
+Website
+Nominal sponsorship
+Jenis sponsor
+Kontrak
+Periode
+Status
+Invoice
+Pembayaran
+```
+
+---
+
+# 44. Uang sponsor jangan dimasukkan sebagai uang kas anggota
+
+Contoh:
+
+```text
+Kas anggota             Rp5.000.000
+Sponsor                 Rp10.000.000
+Event                   Rp2.000.000
+Donasi                  Rp1.000.000
+```
+
+Jangan:
+
+```text
+Total Kas = Rp18.000.000
+```
+
+tanpa klasifikasi.
+
+Harus menjadi:
+
+```text
+Cash Fund
+Sponsor Fund
+Event Fund
+Donation Fund
+```
+
+atau minimal kategori dana.
+
+---
+
+# 45. Ini akan membuat laporan jauh lebih profesional
+
+Misalnya laporan bulanan:
+
+### Pemasukan
+
+```text
+Kas anggota       Rp5.000.000
+Sponsor           Rp3.000.000
+Event             Rp2.000.000
+Donasi            Rp1.000.000
+```
+
+### Pengeluaran
+
+```text
+ID Card            Rp1.500.000
+Acara               Rp2.000.000
+Peralatan           Rp1.000.000
+```
+
+### Saldo
+
+```text
+Rp6.500.000
+```
+
+---
+
+# 46. Struktur database yang saya sarankan
+
+Secara konsep:
+
+```text
+generations
+fee_plans
+fee_plan_versions
+
+ukm_calendars
+ukm_activity_days
+holidays
+academic_periods
+
+invoices
+invoice_items
+invoice_allocations
+
+payment_transactions
+payment_channels
+payment_callbacks
+payment_attempts
+
+cash_receipts
+manual_payment_requests
+
+late_cases
+late_penalties
+warning_records
+disciplinary_cases
+
+point_accounts
+point_transactions
+
+financial_campaigns
+campaign_targets
+campaign_participants
+
+financial_ledger
+settlements
+reconciliations
+
+sponsors
+sponsorships
+
+reactivation_requests
+
+financial_announcements
+
+approval_requests
+approval_actions
+
+audit_logs
+```
+
+---
+
+# 47. Satu tabel paling penting: Invoice
+
+Setiap kewajiban harus punya invoice sendiri.
+
+Misalnya:
+
+```text
+INV-2027-000001
+```
+
+Isi:
+
+```text
+member_id
+generation_id
+fee_plan_id
+type
+period
+subtotal
+penalty
+discount
+total
+due_date
+status
+```
+
+Jadi kas, ID card, reuni, event dapat memakai mesin invoice yang sama.
+
+---
+
+# 48. Contoh invoice kas
+
+```text
+INV-KAS-2027-0001
+
+Anggota:
+Muhammad
+
+Generasi:
+Generasi 1
+
+Periode:
+Maret 2027
+
+Kas:
+Rp5.000
+
+Denda:
+Rp0
+
+Total:
+Rp5.000
+
+Jatuh tempo:
+28 Maret 2027
+
+Status:
+UNPAID
+```
+
+Kemudian terlambat hari 3:
+
+```text
+Kas       Rp5.000
+Denda     Rp3.000
+------------------
+Total     Rp8.000
+```
+
+---
+
+# 49. Denda harus menjadi item transaksi terpisah
+
+Jangan hanya:
+
+```text
+total = 8000
+```
+
+Lebih baik:
+
+```text
+Invoice Items
+
+Kas             Rp5.000
+Denda Level 3   Rp3.000
+```
+
+Hari 10:
+
+```text
+Kas             Rp5.000
+Denda Level 3   Rp3.000
+Denda D4-D10    Rp7.000
+```
+
+Total:
+
+```text
+Rp15.000
+```
+
+Ini jauh lebih mudah diaudit.
+
+---
+
+# 50. Pembayaran besar Rp50.000
+
+Misalnya:
+
+```text
+Payment:
+Rp50.000
+```
+
+kemudian:
+
+```text
+Allocation
+
+January   Rp5.000
+February  Rp5.000
+March     Rp5.000
+April     Rp5.000
+May       Rp5.000
+June      Rp5.000
+July      Rp5.000
+August    Rp5.000
+September Rp5.000
+October   Rp5.000
+```
+
+Maka setiap invoice menjadi:
+
+```text
+PAID_BY_PREPAYMENT
+```
+
+---
+
+# 51. Kalau tarif berubah di tengah tahun
+
+Misalnya generasi 2:
+
+Januari–Juni:
+
+```text
+Rp10.000
+```
+
+kemudian Juli:
+
+```text
+Rp15.000
+```
+
+Jangan mengubah invoice lama.
+
+Sistem:
+
+```text
+JAN Rp10.000
+FEB Rp10.000
+MAR Rp10.000
+APR Rp10.000
+MEI Rp10.000
+JUN Rp10.000
+
+JUL Rp15.000
+AGS Rp15.000
+...
+```
+
+---
+
+# 52. Jika Generasi 2 ingin mengikuti Generasi 1
+
+Ini juga bisa.
+
+Fee plan:
+
+```text
+pricing_mode = FOLLOW_GENERATION
+parent_fee_plan_id = 1
+```
+
+Jadi Generasi 2 bisa:
+
+> mengikuti tarif Generasi 1
+
+atau:
+
+> mempunyai tarif sendiri.
+
+---
+
+# 53. Pilihan saat membuat Generasi baru
+
+Form:
+
+### Buat Generasi
+
+```text
+Nama generasi
+Kode
+Tahun masuk
+
+Skema pembayaran:
+
+( ) Ikuti Generasi 1
+( ) Ikuti Generasi 2
+( ) Buat skema baru
+
+Nominal
+Frekuensi
+Tanggal jatuh tempo
+
+Berlaku mulai
+```
+
+---
+
+# 54. Untuk perubahan skema
+
+Jangan langsung overwrite.
+
+Buat:
+
+## Fee Plan Version
+
+Contoh:
+
+```text
+Version 1
+Rp5.000
+monthly
+2026-01 → 2026-12
+```
+
+kemudian:
+
+```text
+Version 2
+Rp7.500
+monthly
+2027-01 → ...
+```
+
+Histori lama aman.
+
+---
+
+# 55. Hak akses yang saya sarankan
+
+### Owner
+
+```text
+100%
+```
+
+Bisa:
+
+* konfigurasi
+* generasi
+* fee plan
+* payment
+* adjustment
+* laporan
+* audit
+* approval
+* sponsor
+* freeze
+* blacklist
+
+### Superadmin
+
+```text
+100% operasional
+```
+
+### Ketua
+
+```text
+80%
+```
+
+bisa:
+
+* melihat
+* menyetujui
+* pembinaan
+* keputusan anggota
+* pengumuman
+* monitoring
+
+### Bendahara
+
+```text
+75%
+```
+
+bisa:
+
+* kas
+* pembayaran
+* verifikasi
+* laporan
+* penagihan
+* pengumuman keuangan
+
+tetapi perubahan struktur besar memerlukan approval.
+
+---
+
+# 56. Jangan memberikan akses `edit balance`
+
+Tidak boleh ada:
+
+```text
+Edit saldo anggota
+```
+
+secara bebas.
+
+Harus:
+
+```text
+Adjustment
+```
+
+Contohnya:
+
+> Koreksi pembayaran karena webhook gagal.
+
+Kemudian:
+
+```text
+Amount
+Reason
+Evidence
+Created by
+Approved by
+Timestamp
+```
+
+---
+
+# 57. Audit log
+
+Setiap tindakan penting:
+
+```text
+Siapa
+Melakukan apa
+Terhadap siapa
+Nilai sebelum
+Nilai sesudah
+Alasan
+IP
+Tanggal
+```
+
+Misalnya:
+
+```text
+Bendahara
+
+Mengubah status:
+UNPAID → MANUAL_VERIFIED
+
+Alasan:
+Pembayaran cash diterima
+
+Approval:
+Superadmin
+```
+
+---
+
+# 58. Voice AI
+
+Ide Anda tentang:
+
+> "Akun ini sudah membayar uang kas."
+
+Bisa dibuat sebagai **UI sound notification**, tetapi jangan dijadikan sumber kebenaran transaksi.
+
+Urutannya:
+
+```text
+Webhook sukses
+↓
+Database PAID
+↓
+Notification created
+↓
+Toast
+↓
+Voice announcement
+```
+
+Jadi suara hanya presentasi.
+
+---
+
+# 59. Notifikasi pembayaran
+
+Setelah sukses:
+
+```text
+✓ Pembayaran berhasil
+
+Uang Kas Maret 2027
+Rp5.000
+
+Metode:
+QRIS
+
+ID transaksi:
+PAY-2027-000891
+```
+
+Kemudian:
+
+```text
+🔊 Pembayaran Anda telah berhasil.
+```
+
+---
+
+# 60. Notification Center
+
+Saya sarankan menu:
+
+# Notifikasi
+
+kategori:
+
+```text
+🔵 Informasi
+🟢 Pembayaran berhasil
+🟡 Pengingat
+🟠 Terlambat
+🔴 Tunggakan serius
+🟣 Pengumuman
+⚫ Keputusan pengurus
+```
+
+---
+
+# 61. Dashboard anggota
+
+Anggota melihat:
+
+```text
+Uang Kas Bulan Ini
+
+Rp5.000
+
+Jatuh tempo:
+28 September 2027
+
+Status:
+✓ Belum jatuh tempo
+```
+
+Jika telat:
+
+```text
+🔴 TERLAMBAT 3 HARI
+
+Kas             Rp5.000
+Denda            Rp3.000
+------------------------
+TOTAL            Rp8.000
+```
+
+Tombol:
+
+**Bayar Sekarang**
+
+---
+
+# 62. Pilihan pembayaran
+
+Saat klik:
+
+**Bayar Sekarang**
+
+tampilkan:
+
+```text
+Pilih metode
+
+[ QRIS ]
+[ GoPay ]
+[ OVO ]
+[ DANA ]
+[ Virtual Account ]
+[ Transfer Bank ]
+[ Cash ]
+```
+
+Untuk QRIS, konsep satu QR yang dapat digunakan dari berbagai aplikasi QRIS-supporting sangat cocok untuk UX seperti ini. ([Midtrans Documentation][5])
+
+---
+
+# 63. Tetapi satu catatan penting mengenai Cash
+
+Cash jangan langsung:
+
+```text
+PAID
+```
+
+setelah anggota menekan tombol.
+
+Harus:
+
+```text
+CASH_REQUESTED
+↓
+Bendahara menerima
+↓
+VERIFIED
+↓
+PAID
+```
+
+---
+
+# 64. Sistem angsuran
+
+Saya malah menyarankan Anda menambahkan:
+
+## Installment
+
+Karena ketika seseorang memiliki tunggakan Rp15.000, jangan langsung memblokir semuanya tanpa opsi penyelesaian.
+
+Contoh:
+
+```text
+Tunggakan = Rp15.000
+
+Angsuran 1 = Rp5.000
+Angsuran 2 = Rp5.000
+Angsuran 3 = Rp5.000
+```
+
+Tetapi fasilitas ini harus:
+
+```text
+approved_by = Ketua/Bendahara
+```
+
+---
+
+# 65. Keringanan khusus
+
+Sistem juga perlu:
+
+## Payment Relief
+
+Contoh:
+
+```text
+Dispensasi
+Penundaan
+Pembebasan denda
+Pengurangan tertentu
+Angsuran
+```
+
+Tidak boleh otomatis.
+
+Harus ada:
+
+```text
+alasan
+bukti bila diperlukan
+pengusul
+approval
+tanggal berlaku
+```
+
+---
+
+# 66. Aturan baru yang sangat saya rekomendasikan
+
+Jangan menulis:
+
+> hari 4 denda Rp1.000
+
+langsung di kode Laravel.
+
+Simpan di database:
+
+```text
+Penalty Rule
+
+level = 4
+start_day = 4
+end_day = 10
+daily_amount = 1000
+maximum_amount = 7000
+```
+
+Kemudian Anda bisa mengubah kebijakan tanpa edit source code.
+
+---
+
+# 67. Contoh konfigurasi penalty
+
+```text
+Level 1
+day 1
+Rp0
+
+Level 2
+day 2
+Rp0
+
+Level 3
+day 3
+Rp3.000
+
+Level 4
+day 4-10
+Rp1.000/day
+max Rp7.000
+
+Level 5
+day 11-20
+Rp0
+status = disciplinary_review
+```
+
+Ini jauh lebih matang.
+
+---
+
+# 68. Saya juga akan tambahkan "Policy Version"
+
+Misalnya:
+
+```text
+Kebijakan Kas 2027 v1.0
+```
+
+Kemudian tahun berikutnya:
+
+```text
+Kebijakan Kas 2028 v2.0
+```
+
+Jadi ketika kebijakan berubah, histori tetap bisa dibaca berdasarkan aturan yang berlaku saat itu.
+
+---
+
+# 69. Mekanisme pemindahan jatuh tempo
+
+Saya akan buat:
+
+```text
+STANDARD DUE DATE
+        ↓
+CALENDAR ENGINE
+        ↓
+CHECK:
+- UKM aktif?
+- Hari kuliah?
+- Libur?
+- UTS?
+- UAS?
+- Hari nasional?
+- Special non-active?
+        ↓
+FOUND NEXT ACTIVE DAY
+        ↓
+FINAL DUE DATE
+```
+
+Dan kalau pengurus ingin mengubah manual:
+
+```text
+Manual Adjustment
+↓
+Reason
+↓
+Approval
+↓
+Final Due Date
+```
+
+---
+
+# 70. Sistem kalender juga akan berguna untuk hal lain
+
+Bukan hanya kas.
+
+Kalender yang sama bisa dipakai untuk:
+
+```text
+Presensi
+Event
+Meeting
+Jadwal UKM
+Ruangan
+Deadline
+Pembayaran
+UTS
+UAS
+Libur
+```
+
+Jadi jangan buat kalender khusus kas saja.
+
+---
+
+# 71. Pengumuman tagihan
+
+Misalnya Ketua/Bendahara ingin mengingatkan:
+
+> Pembayaran kas September
+
+Admin dapat membuat:
+
+```text
+Judul
+Isi
+Target
+Tanggal mulai
+Tanggal berakhir
+Prioritas
+Jenis
+```
+
+Target:
+
+```text
+Semua
+Generasi 1
+Generasi 2
+Generasi tertentu
+Pengurus
+Anggota
+Akun tertentu
+```
+
+---
+
+# 72. Pengumuman otomatis
+
+Sistem bisa otomatis:
+
+### H-7
+
+> Pengingat kas akan jatuh tempo.
+
+### H-3
+
+> Pembayaran kas tinggal 3 hari.
+
+### H-1
+
+> Besok batas pembayaran.
+
+### Hari H
+
+> Hari ini jatuh tempo.
+
+### Hari 1
+
+> Peringatan pertama.
+
+### Hari 2
+
+> Peringatan kedua.
+
+### Hari 3
+
+> Denda awal berlaku.
+
+### Hari 10
+
+> Tunggakan mencapai batas denda menengah.
+
+### Hari 11
+
+> Kasus masuk pembinaan.
+
+Ini jauh lebih baik daripada bendahara mengingatkan satu per satu.
+
+---
+
+# 73. Tetapi pesan pribadi tetap dipertahankan
+
+Anda benar mengenai ini.
+
+Sistem otomatis melakukan:
+
+```text
+System Notification
+```
+
+sedangkan Ketua/Bendahara tetap bisa:
+
+```text
+Private Message
+```
+
+misalnya:
+
+> Halo Muhammad, kas bulan ini masih tertunggak. Apakah ada kendala yang bisa kami bantu?
+
+Jadi sistem tidak kehilangan sisi manusiawi.
+
+---
+
+# 74. Jangan membuat anggota dipermalukan
+
+Tunggakan harus bersifat privat.
+
+Jangan menampilkan:
+
+```text
+Leaderboard tunggakan
+```
+
+kepada semua anggota.
+
+Yang boleh melihat:
+
+```text
+anggota sendiri
+bendahara
+ketua
+superadmin
+owner
+pengurus berizin
+```
+
+---
+
+# 75. Pengurus yang terlambat juga diproses
+
+Karena Anda menyebut:
+
+> anggota maupun pengurus.
+
+Jangan membuat rule:
+
+```text
+role = member
+```
+
+Rule harus berbasis:
+
+```text
+financial_obligation
+```
+
+sehingga semua akun yang terkena kewajiban dapat ditangani.
+
+Namun keputusan sanksi bisa berbeda berdasarkan kebijakan organisasi.
+
+---
+
+# 76. Jangan otomatis blacklist karena "tidak bayar"
+
+Lebih aman:
+
+```text
+Overdue
+↓
+Warning
+↓
+Penalty
+↓
+Personal contact
+↓
+Disciplinary review
+↓
+Decision
+↓
+Suspension
+↓
+Blacklist
+```
+
+Bukan:
+
+```text
+Hari 20
+↓
+DELETE ACCOUNT
+```
+
+---
+
+# 77. Reactivation harus mempertahankan histori
+
+Saat kembali:
+
+```text
+user.status = ACTIVE
+```
+
+tetapi histori tetap:
+
+```text
+Suspended:
+2027-04-01 → 2027-05-10
+
+Reason:
+Unresolved financial obligation
+
+Reactivated:
+2027-05-10
+Approved by:
+Ketua + BPH
+```
+
+---
+
+# 78. Sistem poin saat reaktivasi
+
+Saya sarankan **jangan otomatis mengembalikan semua poin yang pernah hilang**.
+
+Tetapi buat aturan:
+
+```text
+Reactivation:
+tidak mendapat bonus disiplin periode tersebut
+```
+
+Kemudian poin berikutnya kembali normal.
+
+---
+
+# 79. Struktur besar aplikasi Anda akhirnya akan menjadi
+
+```text
+UKM UNICODE SYSTEM
+
+├── Keanggotaan
+│   ├── Anggota
+│   ├── Generasi
+│   ├── Status Anggota
+│   └── Reaktivasi
+│
+├── Keuangan
+│   ├── Dashboard
+│   ├── Uang Kas
+│   ├── Tagihan
+│   ├── Pembayaran
+│   ├── Denda
+│   ├── Tunggakan
+│   ├── Pembinaan
+│   ├── Rekonsiliasi
+│   └── Laporan
+│
+├── Campaign
+│   ├── ID Card
+│   ├── Event
+│   ├── Reuni
+│   └── Kegiatan
+│
+├── Poin
+│   ├── Point Wallet
+│   ├── Point Ledger
+│   ├── Rules
+│   └── Leaderboard
+│
+├── Sponsor
+│   ├── Sponsor
+│   ├── Partnership
+│   ├── Contract
+│   └── Payment
+│
+├── Kalender
+│   ├── Akademik
+│   ├── UKM
+│   ├── Libur
+│   └── Nonaktif
+│
+└── Audit
+    ├── Financial Logs
+    ├── Approval Logs
+    └── Security Logs
+```
+
+---
+
+# 80. Alur sistem yang saya anggap paling matang
+
+Secara keseluruhan:
+
+```text
+ANGGOTA
+   ↓
+TERDAFTAR DI GENERASI
+   ↓
+MENDAPAT FEE PLAN
+   ↓
+SISTEM MEMBUAT INVOICE
+   ↓
+CALENDAR ENGINE MENENTUKAN JATUH TEMPO
+   ↓
+┌───────────────────────┐
+│ BAYAR TEPAT WAKTU     │
+└───────────┬───────────┘
+            ↓
+          PAID
+            ↓
+      + REWARD POINT
+```
+
+atau:
+
+```text
+BELUM BAYAR
+   ↓
+DAY 1
+WARNING 1
+   ↓
+DAY 2
+WARNING 2
+   ↓
+DAY 3
+Rp3.000 DENDA
+   ↓
+DAY 4-10
+Rp1.000/HARI
+   ↓
+DAY 10
+MAX Rp15.000
+   ↓
+DAY 11-20
+PEMBINAAN
+   ↓
+REVIEW KETUA + BPH
+   ↓
+┌─────────────┬──────────────┐
+│ DIBERI WAKTU│ SUSPENDED    │
+└─────────────┴──────────────┘
+                      ↓
+               REACTIVATION
+                      ↓
+                  APPROVED
+                      ↓
+                   ACTIVE
+```
+
+---
+
+# 81. Skema poin final yang saya rekomendasikan
+
+Saya akan pilih seperti ini:
+
+| Kondisi                           |                                  Poin |
+| --------------------------------- | ------------------------------------: |
+| Bayar sebelum jatuh tempo         |                                   +12 |
+| Bayar tepat pada hari jatuh tempo |                                   +10 |
+| Bayar 1–2 hari terlambat          |                                    +0 |
+| Hari 3–10                         |                                    +0 |
+| Hari 11–20                        |                                    +0 |
+| Pembayaran di muka                |                    bonus maksimal +20 |
+| Denda                             |               tidak menghasilkan poin |
+| Membayar nominal besar            |    tidak otomatis mendapat poin besar |
+| Keputusan disiplin                | dapat -5 s/d -20 berdasarkan approval |
+
+Jadi **uang tidak membeli ranking**.
+
+Ranking tetap mencerminkan kedisiplinan, kontribusi, dan aktivitas organisasi.
+
+---
+
+# 82. Sistem anti-fraud pembayaran
+
+Ini wajib kalau nanti benar-benar terhubung payment gateway.
+
+Gunakan:
+
+```text
+external_transaction_id
+payment_reference
+invoice_id
+amount
+gateway
+payment_method
+status
+paid_at
+settlement_id
+```
+
+Dan webhook harus **idempotent**.
+
+Artinya kalau gateway mengirim notifikasi pembayaran dua kali:
+
+```text
+Webhook 1 → PAID
+Webhook 2 → jangan buat pembayaran kedua
+```
+
+---
+
+# 83. Payment gateway jangan dipercaya hanya dari browser
+
+Misalnya browser mengirim:
+
+```text
+amount=5000
+```
+
+Jangan percaya.
+
+Laravel harus mengecek:
+
+```text
+invoice.amount
+```
+
+sendiri.
+
+Jadi:
+
+```text
+Frontend
+   ↓
+Laravel
+   ↓
+Invoice
+   ↓
+Gateway
+```
+
+bukan:
+
+```text
+Frontend
+   ↓
+Gateway
+```
+
+tanpa validasi server.
+
+---
+
+# 84. Model pembayaran ideal
+
+```text
+Invoice
+    |
+    +--- Payment Attempt 1
+    |
+    +--- Payment Attempt 2
+    |
+    +--- Successful Payment
+              |
+              +--- Allocation
+                    |
+                    +--- Invoice Item A
+                    +--- Invoice Item B
+```
+
+Ini akan menyelesaikan banyak masalah pembayaran gagal, retry, refund, dan pembayaran gabungan.
+
+---
+
+# 85. Untuk UKM Anda, saya menyarankan istilah "Tagihan" bukan hanya "Kas"
+
+Karena nantinya Anda mempunyai:
+
+```text
+Kas bulanan
+ID Card
+Event
+Reuni
+Jaket
+Merchandise
+Pendaftaran
+Dll.
+```
+
+Maka:
+
+# Tagihan & Pembayaran
+
+adalah mesin utamanya.
+
+Sedangkan:
+
+# Uang Kas
+
+hanya salah satu jenis tagihan.
+
+Ini keputusan arsitektur yang menurut saya sangat penting.
+
+---
+
+# 86. Kesimpulan desain yang paling aman
+
+Konsep finalnya:
+
+**Generasi menentukan siapa yang mengikuti skema mana.**
+
+**Fee Plan menentukan nominal dan frekuensi.**
+
+**Calendar Engine menentukan jatuh tempo sebenarnya.**
+
+**Invoice menentukan kewajiban setiap periode.**
+
+**Penalty Engine menghitung keterlambatan.**
+
+**Notification Engine mengingatkan anggota.**
+
+**Payment Engine menerima QRIS/e-wallet/VA/cash/manual.**
+
+**Allocation Engine mengalokasikan pembayaran ke tagihan.**
+
+**Point Engine memberi reward berdasarkan disiplin, bukan nominal uang.**
+
+**Disciplinary Engine menangani keterlambatan serius.**
+
+**Reactivation Engine menangani anggota yang ingin kembali.**
+
+**Campaign Engine menangani ID card, event, reuni dan pembayaran non-kas.**
+
+**Sponsor Engine menangani uang dari sponsor/partnership.**
+
+**Ledger + Audit Engine memastikan uang dan perubahan data dapat dilacak.**
+
+Dengan arsitektur ini, ketika tahun depan Anda berkata:
+
+> “Generasi 4 saya mau Rp15.000 per bulan, jatuh tempo tanggal 25, tidak ikut aturan generasi 1–3.”
+
+Anda **tidak perlu merombak sistem Laravel**. Tinggal membuat generasi dan fee-plan baru.
+
+Dan ketika Anda berkata:
+
+> “Generasi 1 tetap Rp5.000 karena sudah dijanjikan sejak awal UKM.”
+
+histori Generasi 1 tetap aman.
+
+Untuk pembayaran, saya lebih menyarankan mulai dengan **QRIS + Virtual Account + transfer bank**, lalu menambahkan e-wallet yang tersedia melalui gateway. Xendit saat ini mencantumkan OVO, DANA, dan GoPay serta QRIS dan berbagai VA bank Indonesia; Midtrans juga mendokumentasikan QRIS dan notifikasi transaksi. ([Xendit Help Center][1])
+
+**Tahap berikutnya yang paling tepat adalah menerjemahkan konsep ini menjadi rancangan Laravel konkret:** ERD/tabel database, relasi Eloquent, status enum, algoritma `due_date`, algoritma denda hari 1–20, sistem generasi, invoice, payment gateway/webhook, point ledger, approval, freeze/blacklist, reactivation, serta struktur menu Owner/Superadmin/Ketua/Bendahara. Itu yang akan membuat rancangan ini benar-benar siap dijadikan kode produksi.
+
+[1]: https://help.xendit.co/hc/id/articles/360032277491-Apa-saja-eWallet-yang-tersedia-di-Xendit-saat-ini?utm_source=chatgpt.com "Apa saja eWallet yang tersedia di Xendit saat ini? – Indonesia Help Center"
+[2]: https://help.xendit.co/hc/id/articles/360038840352-Bank-apa-saja-yang-tersedia-untuk-pembuatan-Virtual-Account-di-Xendit?utm_source=chatgpt.com "Bank apa saja yang tersedia untuk pembuatan Virtual Account di Xendit? – Indonesia Help Center"
+[3]: https://docs.midtrans.com/reference/qris?utm_source=chatgpt.com "QRIS"
+[4]: https://www.xendit.co/id/products/integrasi/?utm_source=chatgpt.com "Integrasi Payment Gateway | Xendit"
+[5]: https://docs.midtrans.com/docs/perkenalan-pembayaran-qris?utm_source=chatgpt.com "Perkenalan pembayaran QRIS"
+
+lalu dibahw ini iis ifle sidebar yaitu reosurces/views/partials/roles/owner/sidebar.bladde.php
+tolong buatkan menubaru yaitu unag kas
+{{-- Sidebar Owner - Luxury & Professional dengan Dropdown Lengkap --}}
+@php
+    $isCollapsed = session('sidebar_collapsed', false);
+    $currentPath = request()->path();
+
+    // Hitung booking pending untuk badge
+    $pendingCount = \App\Models\Booking::where('status', 'pending')->count();
+@endphp
+
+<aside id="sidebar"
+       class="sidebar-transition
+              bg-gradient-to-b from-white via-gray-50/80 to-white
+              dark:from-gray-900 dark:via-gray-800 dark:to-gray-900
+              border-r border-gray-200/60 dark:border-gray-700/60
+              h-screen overflow-y-auto flex-shrink-0
+              sidebar-mobile
+              lg:relative lg:translate-x-0 lg:block
+              {{ $isCollapsed ? 'sidebar-collapsed' : 'w-72' }}
+              shadow-2xl shadow-gray-200/50 dark:shadow-gray-900/50"
+       style="z-index: 1000;">
+
+    {{-- ============================================ --}}
+    {{-- HEADER SIDEBAR - Logo & Brand --}}
+    {{-- ============================================ --}}
+    <div class="logo-container flex items-center justify-between p-5 border-b border-gray-200/60 dark:border-gray-700/60 bg-gradient-to-r from-white/80 via-gray-50/80 to-white/80 dark:from-gray-800/80 dark:via-gray-700/80 dark:to-gray-800/80">
+        <a href="{{ route('owner.dashboard') }}" class="flex items-center space-x-3 logo-text group">
+            <div class="relative">
+                <img src="{{ asset('images/logo_ukm3.jpeg') }}" alt="Logo"
+                     class="h-10 w-10 rounded-full border-2 border-amber-400/70 shadow-lg shadow-amber-500/20 group-hover:scale-110 transition-transform duration-500 group-hover:rotate-6">
+                <span class="absolute -bottom-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></span>
+            </div>
+            <div class="flex flex-col">
+                <span class="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-amber-700 dark:from-amber-400 dark:to-amber-500 tracking-tight logo-text">UNICODE</span>
+                <span class="text-[9px] text-gray-400 dark:text-gray-500 font-light tracking-widest sidebar-subtitle">OWNER PANEL</span>
+            </div>
+        </a>
+        <div class="flex items-center gap-1">
+            <span class="hidden lg:flex items-center gap-1.5 text-[10px] text-emerald-500/80 dark:text-emerald-400/80 sidebar-subtitle">
+                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span> Online
+            </span>
+            <button id="sidebar-collapse-btn" class="hidden lg:flex text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:scale-110 transition-all duration-300 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                <i id="collapse-icon" class="fas fa-chevron-left text-sm"></i>
+            </button>
+            <button id="sidebar-close-mobile" class="lg:hidden text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:scale-110 transition-all duration-300 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+    </div>
+
+    {{-- ============================================ --}}
+    {{-- MENU NAVIGASI DENGAN DROPDOWN --}}
+    {{-- ============================================ --}}
+    <nav class="p-3 space-y-0.5" id="sidebar-menu">
+
+        {{-- DASHBOARD --}}
+        <a href="{{ route('owner.dashboard') }}"
+           class="menu-item flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300
+                  {{ request()->routeIs('owner.dashboard')
+                      ? 'bg-gradient-to-r from-amber-100/80 to-amber-50/80 dark:from-amber-900/40 dark:to-amber-800/20 text-amber-700 dark:text-amber-300 shadow-sm shadow-amber-500/10 border border-amber-200/50 dark:border-amber-700/30'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+            <div class="menu-icon-wrapper relative w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                        {{ request()->routeIs('owner.dashboard') ? 'bg-gradient-to-br from-amber-400 to-amber-600 shadow-md shadow-amber-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                <i class="fas fa-home w-5 menu-icon text-center text-lg transition-all duration-300
+                          {{ request()->routeIs('owner.dashboard') ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                @if(request()->routeIs('owner.dashboard'))
+                <span class="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span>
+                @endif
+            </div>
+            <span class="menu-text text-sm font-medium tracking-wide">Dashboard</span>
+            <span class="ml-auto menu-text text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-600">Home</span>
+        </a>
+
+        {{-- ====== DROPDOWN: MANAJEMEN ====== --}}
+        @php
+            $isManagementActive = request()->routeIs('owner.management.*') ||
+                                  request()->routeIs('owner.leaderboard') ||
+                                  request()->routeIs('owner.assign-tasks') ||
+                                  request()->routeIs('owner.promote-demote');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                           {{ $isManagementActive ? 'bg-amber-50/70 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                            {{ $isManagementActive ? 'bg-gradient-to-br from-amber-400 to-amber-600 shadow-md shadow-amber-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-crown w-5 menu-icon text-center text-lg transition-all duration-300
+                              {{ $isManagementActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Manajemen</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isManagementActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isManagementActive ? '' : 'hidden' }}">
+                {{-- Leaderboard, Assign, Promote --}}
+                <a href="{{ route('owner.leaderboard') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-trophy w-5 text-yellow-500 dark:text-yellow-400 text-center"></i>
+                    <span class="menu-text">Leaderboard</span>
+                </a>
+                <a href="{{ route('owner.assign-tasks') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-tasks w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Pemberi Tugas</span>
+                </a>
+                <a href="{{ route('owner.promote-demote') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-arrows-alt-v w-5 text-amber-500 dark:text-amber-400 text-center"></i>
+                    <span class="menu-text">Naik / Turun Pangkat</span>
+                </a>
+
+                {{-- Submenu Manajemen Organisasi --}}
+                <div class="dropdown-sub-group mt-1">
+                    <div class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider px-4 py-1">Organisasi</div>
+                    <a href="{{ route('owner.management.dashboard') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-sitemap w-5 text-cyan-500 dark:text-cyan-400 text-center"></i>
+                        <span class="menu-text">Dashboard Manajemen</span>
+                    </a>
+                    <a href="{{ route('owner.management.members.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-users w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                        <span class="menu-text">Anggota</span>
+                    </a>
+                    <a href="{{ route('owner.management.officials') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-user-tie w-5 text-indigo-500 dark:text-indigo-400 text-center"></i>
+                        <span class="menu-text">Pengurus</span>
+                    </a>
+                    {{-- Testing --}}
+                    <div class="dropdown-sub-group">
+                        <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                                class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                            <i class="fas fa-flask w-5 text-orange-500 dark:text-orange-400 text-center"></i>
+                            <span class="menu-text flex-1">Testing</span>
+                            <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                        </button>
+                        <div class="sub-content hidden space-y-0.5 pl-6">
+                            <a href="{{ route('owner.management.testing.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+                            <a href="{{ route('owner.management.testing.qr') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">QR</a>
+                            <a href="{{ route('owner.management.testing.nim') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">NIM</a>
+                            <a href="{{ route('owner.management.testing.identity') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Identity</a>
+                            <a href="{{ route('owner.management.testing.validate') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Validate</a>
+                        </div>
+                    </div>
+                    {{-- NFC --}}
+<div class="dropdown-sub-group">
+    <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+            class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+        <i class="fas fa-wifi w-5 text-cyan-500 dark:text-cyan-400 text-center"></i>
+        <span class="menu-text flex-1">NFC</span>
+        <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+    </button>
+    <div class="sub-content hidden space-y-0.5 pl-6">
+        <a href="{{ route('owner.management.nfc.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+        <a href="{{ route('owner.management.nfc.generate') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Generate</a>
+        <a href="{{ route('owner.management.nfc.history') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">History</a>
+        <a href="{{ route('owner.management.nfc.testing') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Testing</a>
+    </div>
+</div>
+                    {{-- QR Code --}}
+                    <div class="dropdown-sub-group">
+                        <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                                class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                            <i class="fas fa-qrcode w-5 text-teal-500 dark:text-teal-400 text-center"></i>
+                            <span class="menu-text flex-1">QR Code</span>
+                            <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                        </button>
+                        <div class="sub-content hidden space-y-0.5 pl-6">
+                            <a href="{{ route('owner.management.qr.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+                            <a href="{{ route('owner.management.qr.generate') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Generate</a>
+                            <a href="{{ route('owner.management.qr.massal') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Massal</a>
+                            <a href="{{ route('owner.management.qr.konversi') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Konversi</a>
+                            <a href="{{ route('owner.management.qr.test') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Test</a>
+                            <a href="{{ route('owner.management.qr.print') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Print</a>
+                            <a href="{{ route('owner.management.qr.download') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Download</a>
+                            <a href="{{ route('owner.management.qr.deactivate') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Deactivate</a>
+                        </div>
+                    </div>
+                    {{-- Kelompok --}}
+                    <div class="dropdown-sub-group">
+                        <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                                class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                            <i class="fas fa-layer-group w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                            <span class="menu-text flex-1">Kelompok</span>
+                            <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                        </button>
+                        <div class="sub-content hidden space-y-0.5 pl-6">
+                            <a href="{{ route('owner.management.groups.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+                            <a href="{{ route('owner.management.groups.show', ['id' => 1]) }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Show</a>
+                            <a href="{{ route('owner.management.groups.move', ['id' => 1]) }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Move</a>
+                            <a href="{{ route('owner.management.groups.history') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">History</a>
+                        </div>
+                    </div>
+                    {{-- Divisi --}}
+                    <div class="dropdown-sub-group">
+                        <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                                class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                            <i class="fas fa-building w-5 text-pink-500 dark:text-pink-400 text-center"></i>
+                            <span class="menu-text flex-1">Divisi</span>
+                            <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                        </button>
+                        <div class="sub-content hidden space-y-0.5 pl-6">
+                            <a href="{{ route('owner.management.divisions.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+                            <a href="{{ route('owner.management.divisions.show', ['id' => 1]) }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Show</a>
+                            <a href="{{ route('owner.management.divisions.move', ['id' => 1]) }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Move</a>
+                            <a href="{{ route('owner.management.divisions.history') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">History</a>
+                        </div>
+                    </div>
+                    {{-- Pengangkatan --}}
+                    <div class="dropdown-sub-group">
+                        <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                                class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                            <i class="fas fa-user-check w-5 text-green-500 dark:text-green-400 text-center"></i>
+                            <span class="menu-text flex-1">Pengangkatan</span>
+                            <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                        </button>
+                        <div class="sub-content hidden space-y-0.5 pl-6">
+                            <a href="{{ route('owner.management.appointments.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+                            <a href="{{ route('owner.management.appointments.create') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Create</a>
+                            <a href="{{ route('owner.management.appointments.approval') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Approval</a>
+                            <a href="{{ route('owner.management.appointments.history') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">History</a>
+                        </div>
+                    </div>
+                    {{-- Pelanggaran (management) --}}
+                    <div class="dropdown-sub-group">
+                        <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                                class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                            <i class="fas fa-gavel w-5 text-red-500 dark:text-red-400 text-center"></i>
+                            <span class="menu-text flex-1">Pelanggaran</span>
+                            <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                        </button>
+                        <div class="sub-content hidden space-y-0.5 pl-6">
+                            <a href="{{ route('owner.management.violations.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+                            <a href="{{ route('owner.management.violations.warning') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Warning</a>
+                            <a href="{{ route('owner.management.violations.light') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Light</a>
+                            <a href="{{ route('owner.management.violations.medium') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Medium</a>
+                            <a href="{{ route('owner.management.violations.heavy') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Heavy</a>
+                            <a href="{{ route('owner.management.violations.suspend') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Suspend</a>
+                            <a href="{{ route('owner.management.violations.block') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Block</a>
+                        </div>
+                    </div>
+                    {{-- Arsip --}}
+                    <div class="dropdown-sub-group">
+                        <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                                class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                            <i class="fas fa-archive w-5 text-gray-500 dark:text-gray-400 text-center"></i>
+                            <span class="menu-text flex-1">Arsip</span>
+                            <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                        </button>
+                        <div class="sub-content hidden space-y-0.5 pl-6">
+                            <a href="{{ route('owner.management.archive.graduated') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Graduated</a>
+                            <a href="{{ route('owner.management.archive.left') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Left</a>
+                            <a href="{{ route('owner.management.archive.history') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">History</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ====== DROPDOWN: KONTAK ====== --}}
+        @php
+            $isContactsActive = request()->routeIs('owner.contacts.*') ||
+                                request()->routeIs('owner.chats.*') ||
+                                request()->routeIs('owner.groups.*') ||
+                                request()->routeIs('owner.messages.*') ||
+                                request()->routeIs('owner.security.*') ||
+                                request()->routeIs('owner.notifications.chat');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                           {{ $isContactsActive ? 'bg-blue-50/70 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                            {{ $isContactsActive ? 'bg-gradient-to-br from-blue-400 to-indigo-500 shadow-md shadow-blue-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-address-book w-5 menu-icon text-center text-lg transition-all duration-300
+                              {{ $isContactsActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Kontak</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isContactsActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isContactsActive ? '' : 'hidden' }}">
+                {{-- Semua Akun --}}
+                <a href="{{ route('owner.contacts.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-users w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">Semua Akun</span>
+                </a>
+                {{-- Role --}}
+                <a href="{{ route('owner.contacts.owner') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-crown w-5 text-amber-500 dark:text-amber-400 text-center"></i>
+                    <span class="menu-text">Owner</span>
+                </a>
+                <a href="{{ route('owner.contacts.superadmin') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-shield-alt w-5 text-red-500 dark:text-red-400 text-center"></i>
+                    <span class="menu-text">Superadmin</span>
+                </a>
+                <a href="{{ route('owner.contacts.ketua') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-users-cog w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Ketua</span>
+                </a>
+                <a href="{{ route('owner.contacts.pengurus') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-tie w-5 text-indigo-500 dark:text-indigo-400 text-center"></i>
+                    <span class="menu-text">Pengurus</span>
+                </a>
+                <a href="{{ route('owner.contacts.anggota') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-graduate w-5 text-green-500 dark:text-green-400 text-center"></i>
+                    <span class="menu-text">Anggota</span>
+                </a>
+                <a href="{{ route('owner.contacts.anggota-umum') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user w-5 text-teal-500 dark:text-teal-400 text-center"></i>
+                    <span class="menu-text">Anggota Umum</span>
+                </a>
+                <a href="{{ route('owner.contacts.pengunjung') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-friends w-5 text-gray-500 dark:text-gray-400 text-center"></i>
+                    <span class="menu-text">Pengunjung</span>
+                </a>
+                <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                {{-- Status Akun --}}
+                <a href="{{ route('owner.contacts.active') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-circle text-green-500 w-5 text-center"></i>
+                    <span class="menu-text">Akun Aktif</span>
+                </a>
+                <a href="{{ route('owner.contacts.offline') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-circle text-gray-400 w-5 text-center"></i>
+                    <span class="menu-text">Akun Offline</span>
+                </a>
+                <a href="{{ route('owner.contacts.frozen') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-snowflake w-5 text-blue-300 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">Akun Dibekukan</span>
+                </a>
+                <a href="{{ route('owner.contacts.blocked') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-ban w-5 text-red-500 dark:text-red-400 text-center"></i>
+                    <span class="menu-text">Akun Diblokir</span>
+                </a>
+                <a href="{{ route('owner.contacts.deactivated') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-slash w-5 text-gray-600 dark:text-gray-500 text-center"></i>
+                    <span class="menu-text">Akun Dinonaktifkan</span>
+                </a>
+                <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+                {{-- Chat & Grup --}}
+                <div class="dropdown-sub-group">
+                    <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                            class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-comments w-5 text-cyan-500 dark:text-cyan-400 text-center"></i>
+                        <span class="menu-text flex-1">Chat &amp; Grup</span>
+                        <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                    </button>
+                    <div class="sub-content hidden space-y-0.5 pl-6">
+                        <a href="{{ route('owner.chats.private') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-user-circle w-4 text-center"></i> Chat Privat
+                        </a>
+                        <a href="{{ route('owner.groups.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-layer-group w-4 text-center"></i> Grup Chat
+                        </a>
+                        <a href="{{ route('owner.groups.create') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-plus-circle w-4 text-center text-green-500"></i> Buat Grup
+                        </a>
+                    </div>
+                </div>
+                {{-- Pesan --}}
+                <div class="dropdown-sub-group">
+                    <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                            class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-envelope w-5 text-yellow-500 dark:text-yellow-400 text-center"></i>
+                        <span class="menu-text flex-1">Pesan</span>
+                        <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                    </button>
+                    <div class="sub-content hidden space-y-0.5 pl-6">
+                        <a href="{{ route('owner.messages.inbox') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-inbox w-4 text-center"></i> Pesan Masuk
+                        </a>
+                        <a href="{{ route('owner.messages.outbox') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-paper-plane w-4 text-center"></i> Pesan Keluar
+                        </a>
+                        <a href="{{ route('owner.messages.rejected') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-times-circle w-4 text-center text-red-400"></i> Pesan Ditolak
+                        </a>
+                    </div>
+                </div>
+                {{-- Keamanan Chat --}}
+                <div class="dropdown-sub-group">
+                    <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                            class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-shield-alt w-5 text-red-500 dark:text-red-400 text-center"></i>
+                        <span class="menu-text flex-1">Keamanan Chat</span>
+                        <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                    </button>
+                    <div class="sub-content hidden space-y-0.5 pl-6">
+                        <a href="{{ route('owner.security.blocked-words') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-ban w-4 text-center"></i> Kata Terlarang
+                        </a>
+                        <a href="{{ route('owner.security.chat-logs') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-history w-4 text-center"></i> Log Keamanan
+                        </a>
+                    </div>
+                </div>
+                {{-- Notifikasi Chat --}}
+                <a href="{{ route('owner.notifications.chat') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-bell w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Notifikasi Chat</span>
+                    <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-700/30">Baru</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- ====== DROPDOWN: RUANGAN ====== --}}
+        @php
+            $isRoomActive = request()->routeIs('owner.rooms.*') ||
+                            request()->routeIs('owner.bookings.*') ||
+                            request()->routeIs('owner.room-schedules.*') ||
+                            request()->routeIs('owner.rooms.public.*') ||
+                            request()->routeIs('owner.rooms.testing.*') ||
+                            request()->routeIs('owner.maintenance.*') ||
+                            request()->routeIs('owner.calendar.*') ||
+                            request()->routeIs('owner.export.*');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                           {{ $isRoomActive ? 'bg-cyan-50/70 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                            {{ $isRoomActive ? 'bg-gradient-to-br from-cyan-400 to-blue-500 shadow-md shadow-cyan-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-door-open w-5 menu-icon text-center text-lg transition-all duration-300
+                              {{ $isRoomActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Ruangan</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isRoomActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isRoomActive ? '' : 'hidden' }}">
+                {{-- Semua Ruangan --}}
+                <a href="{{ route('owner.rooms.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-list w-5 text-cyan-500 dark:text-cyan-400 text-center"></i>
+                    <span class="menu-text">Semua Ruangan</span>
+                </a>
+                {{-- Tambah Ruangan --}}
+                <a href="{{ route('owner.rooms.create') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-plus-circle w-5 text-green-500 dark:text-green-400 text-center"></i>
+                    <span class="menu-text">Tambah Ruangan</span>
+                </a>
+
+                {{-- ===== SUB-DROPDOWN BOOKING dengan Filter Status ===== --}}
+                <div class="dropdown-sub-group">
+                    <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                            class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-calendar-check w-5 text-orange-500 dark:text-orange-400 text-center"></i>
+                        <span class="menu-text flex-1">Booking</span>
+                        @if($pendingCount > 0)
+                            <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white font-bold">{{ $pendingCount }}</span>
+                        @endif
+                        <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                    </button>
+                    <div class="sub-content hidden space-y-0.5 pl-6">
+                        <a href="{{ route('owner.bookings.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-list w-4 text-center"></i> Semua Booking
+                        </a>
+                        <a href="{{ route('owner.bookings.index', ['status' => 'pending']) }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-clock w-4 text-center text-yellow-500"></i> Menunggu
+                            @if($pendingCount > 0)
+                                <span class="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-red-500 text-white">{{ $pendingCount }}</span>
+                            @endif
+                        </a>
+                        <a href="{{ route('owner.bookings.index', ['status' => 'conflict']) }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-exclamation-triangle w-4 text-center text-red-500"></i> Konflik
+                        </a>
+                        <a href="{{ route('owner.bookings.index', ['status' => 'approved']) }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-check-circle w-4 text-center text-green-500"></i> Disetujui
+                        </a>
+                        <a href="{{ route('owner.bookings.index', ['status' => 'completed']) }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-flag-checkered w-4 text-center text-blue-500"></i> Selesai
+                        </a>
+                        <a href="{{ route('owner.bookings.index', ['status' => 'rejected']) }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">
+                            <i class="fas fa-times-circle w-4 text-center text-gray-500"></i> Ditolak
+                        </a>
+                    </div>
+                </div>
+
+                {{-- Kalender --}}
+                <a href="{{ route('owner.rooms.calendar') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-calendar-alt w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Kalender</span>
+                </a>
+
+                {{-- Maintenance --}}
+                <a href="{{ route('owner.rooms.maintenance.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-tools w-5 text-yellow-500 dark:text-yellow-400 text-center"></i>
+                    <span class="menu-text">Maintenance</span>
+                </a>
+
+                {{-- Export Data --}}
+                <a href="{{ route('owner.rooms.export', ['format' => 'excel']) }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-file-export w-5 text-emerald-500 dark:text-emerald-400 text-center"></i>
+                    <span class="menu-text">Export Data</span>
+                </a>
+
+                <div class="border-t border-gray-200 dark:border-gray-700 my-1"></div>
+
+                {{-- QR Testing --}}
+                <a href="{{ route('owner.rooms.testing') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-qrcode w-5 text-teal-500 dark:text-teal-400 text-center"></i>
+                    <span class="menu-text">Testing QR Code</span>
+                </a>
+                {{-- Publik QR --}}
+                <a href="{{ route('owner.rooms.public.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-globe w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">Publik QR Code</span>
+                </a>
+                {{-- Riwayat Publikasi --}}
+                <a href="{{ route('owner.rooms.public.history') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-history w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Riwayat Publikasi</span>
+                </a>
+                {{-- Ruangan Private --}}
+                <a href="{{ route('owner.rooms.private') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-lock w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Lihat Ruangan Private</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- ====== DROPDOWN: GAME CENTER (NEW) ====== --}}
+        @php
+            $isGameActive = request()->routeIs('owner.game.*');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                           {{ $isGameActive ? 'bg-amber-50/70 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                            {{ $isGameActive ? 'bg-gradient-to-br from-amber-400 to-orange-500 shadow-md shadow-amber-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-gamepad w-5 menu-icon text-center text-lg transition-all duration-300
+                              {{ $isGameActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Game Center</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isGameActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isGameActive ? '' : 'hidden' }}">
+                <a href="{{ route('owner.game.games.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-tachometer-alt w-5 text-amber-500 dark:text-amber-400 text-center"></i>
+                    <span class="menu-text">Dashboard</span>
+                </a>
+                <a href="{{ route('owner.game.games.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-gamepad w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Daftar Game</span>
+                </a>
+                <a href="{{ route('owner.game.competitions.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-trophy w-5 text-yellow-500 dark:text-yellow-400 text-center"></i>
+                    <span class="menu-text">Kompetisi</span>
+                </a>
+                <a href="{{ route('owner.game.challenges.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-bolt w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">Challenge</span>
+                </a>
+                <a href="{{ route('owner.game.leaderboard.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-list-ol w-5 text-green-500 dark:text-green-400 text-center"></i>
+                    <span class="menu-text">Leaderboard</span>
+                </a>
+                <a href="{{ route('owner.game.players.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-users w-5 text-indigo-500 dark:text-indigo-400 text-center"></i>
+                    <span class="menu-text">Manajemen Pemain</span>
+                </a>
+                <a href="{{ route('owner.game.settings.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-cog w-5 text-gray-500 dark:text-gray-400 text-center"></i>
+                    <span class="menu-text">Pengaturan</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- ====== DROPDOWN: KELOMPOK ====== --}}
+        @php
+            $isKelompokActive = request()->routeIs('owner.kelompok.*');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                   {{ $isKelompokActive ? 'bg-purple-50/70 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                    {{ $isKelompokActive ? 'bg-gradient-to-br from-purple-400 to-indigo-500 shadow-md shadow-purple-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-layer-group w-5 menu-icon text-center text-lg transition-all duration-300
+                      {{ $isKelompokActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Kelompok</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isKelompokActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isKelompokActive ? '' : 'hidden' }}">
+                <a href="{{ route('owner.kelompok.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-list w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Semua Kelompok</span>
+                </a>
+                <a href="{{ route('owner.kelompok.pengumuman') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-bullhorn w-5 text-yellow-500 dark:text-yellow-400 text-center"></i>
+                    <span class="menu-text">Pengumuman Kelompok</span>
+                </a>
+                <a href="{{ route('owner.kelompok.anggota') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-users w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">Anggota Kelompok</span>
+                </a>
+                <a href="{{ route('owner.kelompok.akses') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-key w-5 text-red-500 dark:text-red-400 text-center"></i>
+                    <span class="menu-text">Hak Akses Kelompok</span>
+                </a>
+                <a href="{{ route('owner.kelompok.pesan') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-comment-dots w-5 text-green-500 dark:text-green-400 text-center"></i>
+                    <span class="menu-text">Beri Pesan Kelompok</span>
+                </a>
+                <a href="{{ route('owner.kelompok.custom') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-cog w-5 text-cyan-500 dark:text-cyan-400 text-center"></i>
+                    <span class="menu-text">Custom Kelompok</span>
+                </a>
+                <a href="{{ route('owner.kelompok.invite') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-plus w-5 text-green-500 dark:text-green-400 text-center"></i>
+                    <span class="menu-text">Invite Anggota</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- ====== DROPDOWN: DIVISI ====== --}}
+        @php
+            $isDivisiActive = request()->routeIs('owner.divisi.*');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                   {{ $isDivisiActive ? 'bg-rose-50/70 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                    {{ $isDivisiActive ? 'bg-gradient-to-br from-rose-400 to-pink-500 shadow-md shadow-rose-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-sitemap w-5 menu-icon text-center text-lg transition-all duration-300
+                      {{ $isDivisiActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Divisi</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isDivisiActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isDivisiActive ? '' : 'hidden' }}">
+                <a href="{{ route('owner.divisi.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-list w-5 text-rose-500 dark:text-rose-400 text-center"></i>
+                    <span class="menu-text">Semua Divisi</span>
+                </a>
+                <a href="{{ route('owner.divisi.pengumuman') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-bullhorn w-5 text-yellow-500 dark:text-yellow-400 text-center"></i>
+                    <span class="menu-text">Pengumuman Divisi</span>
+                </a>
+                <a href="{{ route('owner.divisi.anggota') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-users w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">Anggota Divisi</span>
+                </a>
+                <a href="{{ route('owner.divisi.akses') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-key w-5 text-red-500 dark:text-red-400 text-center"></i>
+                    <span class="menu-text">Hak Akses Divisi</span>
+                </a>
+                <a href="{{ route('owner.divisi.pesan') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-comment-dots w-5 text-green-500 dark:text-green-400 text-center"></i>
+                    <span class="menu-text">Beri Pesan Divisi</span>
+                </a>
+                <a href="{{ route('owner.divisi.custom') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-cog w-5 text-cyan-500 dark:text-cyan-400 text-center"></i>
+                    <span class="menu-text">Custom Divisi</span>
+                </a>
+                <a href="{{ route('owner.divisi.invite') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-plus w-5 text-green-500 dark:text-green-400 text-center"></i>
+                    <span class="menu-text">Invite Anggota</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- ====== DROPDOWN: JADWAL ====== --}}
+        @php
+            $isScheduleActive = request()->routeIs('owner.schedules.*');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                           {{ $isScheduleActive ? 'bg-green-50/70 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                            {{ $isScheduleActive ? 'bg-gradient-to-br from-green-400 to-emerald-500 shadow-md shadow-green-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-calendar-alt w-5 menu-icon text-center text-lg transition-all duration-300
+                              {{ $isScheduleActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Jadwal</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isScheduleActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isScheduleActive ? '' : 'hidden' }}">
+                <a href="{{ route('owner.schedules.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-list w-5 text-green-500 dark:text-green-400 text-center"></i>
+                    <span class="menu-text">Semua Jadwal</span>
+                </a>
+                <a href="{{ route('owner.schedules.upload') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-upload w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">Upload Jadwal</span>
+                </a>
+                <a href="{{ route('owner.schedules.public') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-globe w-5 text-cyan-500 dark:text-cyan-400 text-center"></i>
+                    <span class="menu-text">Jadwal Publik</span>
+                </a>
+                <a href="{{ route('owner.schedules.history') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-history w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Riwayat Upload</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- ====== DROPDOWN: PENGURUS (officials) ====== --}}
+        @php
+            $isOfficialsActive = request()->routeIs('owner.officials.*');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                           {{ $isOfficialsActive ? 'bg-indigo-50/70 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                            {{ $isOfficialsActive ? 'bg-gradient-to-br from-indigo-400 to-indigo-600 shadow-md shadow-indigo-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-users-cog w-5 menu-icon text-center text-lg transition-all duration-300
+                              {{ $isOfficialsActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Pengurus</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isOfficialsActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isOfficialsActive ? '' : 'hidden' }}">
+                {{-- Utama --}}
+                <a href="{{ route('owner.officials.dashboard') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-tachometer-alt w-5 text-indigo-500 dark:text-indigo-400 text-center"></i>
+                    <span class="menu-text">Dashboard Pengurus</span>
+                </a>
+                <a href="{{ route('owner.officials.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-list w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">Data Pengurus</span>
+                </a>
+                <a href="{{ route('owner.officials.core') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-star w-5 text-yellow-500 dark:text-yellow-400 text-center"></i>
+                    <span class="menu-text">Pengurus Inti</span>
+                </a>
+                <a href="{{ route('owner.officials.secretary') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-pen-fancy w-5 text-green-500 dark:text-green-400 text-center"></i>
+                    <span class="menu-text">Sekretaris</span>
+                </a>
+                <a href="{{ route('owner.officials.assistant-secretary') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-edit w-5 text-teal-500 dark:text-teal-400 text-center"></i>
+                    <span class="menu-text">Asisten Sekretaris</span>
+                </a>
+                <a href="{{ route('owner.officials.pj-division') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-tag w-5 text-cyan-500 dark:text-cyan-400 text-center"></i>
+                    <span class="menu-text">PJ Divisi</span>
+                </a>
+                <a href="{{ route('owner.officials.assistant-division') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-friends w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Asisten Divisi</span>
+                </a>
+                <a href="{{ route('owner.officials.division-members') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-users w-5 text-pink-500 dark:text-pink-400 text-center"></i>
+                    <span class="menu-text">Anggota Divisi</span>
+                </a>
+
+                {{-- Struktur Organisasi --}}
+                <div class="dropdown-sub-group">
+                    <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                            class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-sitemap w-5 text-amber-500 dark:text-amber-400 text-center"></i>
+                        <span class="menu-text flex-1">Struktur Organisasi</span>
+                        <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                    </button>
+                    <div class="sub-content hidden space-y-0.5 pl-6">
+                        <a href="{{ route('owner.officials.structure.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+                        <a href="{{ route('owner.officials.structure.owner') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Owner</a>
+                        <a href="{{ route('owner.officials.structure.superadmin') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Superadmin</a>
+                        <a href="{{ route('owner.officials.structure.ketua') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Ketua</a>
+                        <a href="{{ route('owner.officials.structure.pengurus-inti') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Pengurus Inti</a>
+                        <a href="{{ route('owner.officials.structure.sekretaris') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Sekretaris</a>
+                        <a href="{{ route('owner.officials.structure.asisten-sekretaris') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Asisten Sekretaris</a>
+                        <a href="{{ route('owner.officials.structure.pj-divisi') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">PJ Divisi</a>
+                        <a href="{{ route('owner.officials.structure.asisten-divisi') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Asisten Divisi</a>
+                        <a href="{{ route('owner.officials.structure.anggota-divisi') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Anggota Divisi</a>
+                    </div>
+                </div>
+
+                {{-- Divisi --}}
+                <div class="dropdown-sub-group">
+                    <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                            class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-building w-5 text-pink-500 dark:text-pink-400 text-center"></i>
+                        <span class="menu-text flex-1">Divisi</span>
+                        <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                    </button>
+                    <div class="sub-content hidden space-y-0.5 pl-6">
+                        <a href="{{ route('owner.officials.divisions.pengembang') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Pengembang</a>
+                        <a href="{{ route('owner.officials.divisions.pdd') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">PDD</a>
+                        <a href="{{ route('owner.officials.divisions.show', ['id' => 1]) }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Show</a>
+                    </div>
+                </div>
+
+                {{-- Jabatan --}}
+                <div class="dropdown-sub-group">
+                    <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                            class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-briefcase w-5 text-amber-500 dark:text-amber-400 text-center"></i>
+                        <span class="menu-text flex-1">Jabatan</span>
+                        <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                    </button>
+                    <div class="sub-content hidden space-y-0.5 pl-6">
+                        <a href="{{ route('owner.officials.positions.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+                        <a href="{{ route('owner.officials.positions.appoint') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Appoint</a>
+                        <a href="{{ route('owner.officials.positions.demote') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Demote</a>
+                        <a href="{{ route('owner.officials.positions.transfer') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Transfer</a>
+                        <a href="{{ route('owner.officials.positions.terminate') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Terminate</a>
+                        <a href="{{ route('owner.officials.positions.history') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">History</a>
+                    </div>
+                </div>
+
+                {{-- QR Pengurus --}}
+                <div class="dropdown-sub-group">
+                    <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                            class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-qrcode w-5 text-teal-500 dark:text-teal-400 text-center"></i>
+                        <span class="menu-text flex-1">QR Pengurus</span>
+                        <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                    </button>
+                    <div class="sub-content hidden space-y-0.5 pl-6">
+                        <a href="{{ route('owner.officials.qr.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+                        <a href="{{ route('owner.officials.qr.generate') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Generate</a>
+                        <a href="{{ route('owner.officials.qr.massal') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Massal</a>
+                        <a href="{{ route('owner.officials.qr.testing') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Testing</a>
+                        <a href="{{ route('owner.officials.qr.print-card') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Print Card</a>
+                    </div>
+                </div>
+
+                {{-- Audit Pengurus --}}
+                <div class="dropdown-sub-group">
+                    <button onclick="event.stopPropagation(); this.closest('.dropdown-sub-group').querySelector('.sub-content').classList.toggle('hidden');"
+                            class="menu-item flex items-center gap-4 w-full text-left px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                        <i class="fas fa-history w-5 text-gray-500 dark:text-gray-400 text-center"></i>
+                        <span class="menu-text flex-1">Audit Pengurus</span>
+                        <i class="fas fa-chevron-right text-[10px] text-gray-400"></i>
+                    </button>
+                    <div class="sub-content hidden space-y-0.5 pl-6">
+                        <a href="{{ route('owner.officials.audit.index') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Index</a>
+                        <a href="{{ route('owner.officials.audit.changes') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Changes</a>
+                        <a href="{{ route('owner.officials.audit.appointments') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Appointments</a>
+                        <a href="{{ route('owner.officials.audit.demotions') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Demotions</a>
+                        <a href="{{ route('owner.officials.audit.transfers') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Transfers</a>
+                        <a href="{{ route('owner.officials.audit.terminations') }}" class="menu-item flex items-center gap-4 px-4 py-1.5 rounded-lg transition-all duration-300 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-xs">Terminations</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- ====== DROPDOWN: APPROVAL CENTER ====== --}}
+        @php
+            $isApprovalsActive = request()->routeIs('owner.approvals.*');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                           {{ $isApprovalsActive ? 'bg-green-50/70 dark:bg-green-900/20 text-green-700 dark:text-green-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                            {{ $isApprovalsActive ? 'bg-gradient-to-br from-green-400 to-green-600 shadow-md shadow-green-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-check-double w-5 menu-icon text-center text-lg transition-all duration-300
+                              {{ $isApprovalsActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Approval Center</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isApprovalsActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isApprovalsActive ? '' : 'hidden' }}">
+                <a href="{{ route('owner.approvals.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-list w-5 text-green-500 dark:text-green-400 text-center"></i>
+                    <span class="menu-text">Index</span>
+                </a>
+                <a href="{{ route('owner.approvals.pending') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-clock w-5 text-yellow-500 dark:text-yellow-400 text-center"></i>
+                    <span class="menu-text">Pending</span>
+                </a>
+                <a href="{{ route('owner.approvals.history') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-history w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">History</span>
+                </a>
+                <a href="{{ route('owner.approvals.show', ['id' => 1]) }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-eye w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Show Detail</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- ====== DROPDOWN: AUDIT CENTER ====== --}}
+        @php
+            $isAuditActive = request()->routeIs('owner.audit.*');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                           {{ $isAuditActive ? 'bg-gray-100/70 dark:bg-gray-700/30 text-gray-700 dark:text-gray-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                            {{ $isAuditActive ? 'bg-gradient-to-br from-gray-500 to-gray-700 shadow-md shadow-gray-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-search w-5 menu-icon text-center text-lg transition-all duration-300
+                              {{ $isAuditActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Audit Center</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isAuditActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isAuditActive ? '' : 'hidden' }}">
+                <a href="{{ route('owner.audit.index') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-list w-5 text-gray-500 dark:text-gray-400 text-center"></i>
+                    <span class="menu-text">Index</span>
+                </a>
+                <a href="{{ route('owner.audit.activity') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-activity w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">Activity</span>
+                </a>
+                <a href="{{ route('owner.audit.data-changes') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-database w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Data Changes</span>
+                </a>
+                <a href="{{ route('owner.audit.role-changes') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-shield w-5 text-indigo-500 dark:text-indigo-400 text-center"></i>
+                    <span class="menu-text">Role Changes</span>
+                </a>
+                <a href="{{ route('owner.audit.security') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-lock w-5 text-red-500 dark:text-red-400 text-center"></i>
+                    <span class="menu-text">Security</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- ====== NOTIFICATION CENTER (langsung) ====== --}}
+        <a href="{{ route('owner.notifications.index') }}"
+           class="menu-item flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300
+                  {{ request()->routeIs('owner.notifications.index')
+                      ? 'bg-gradient-to-r from-cyan-100/80 to-cyan-50/80 dark:from-cyan-900/40 dark:to-cyan-800/20 text-cyan-700 dark:text-cyan-300 shadow-sm shadow-cyan-500/10 border border-cyan-200/50 dark:border-cyan-700/30'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+            <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                        {{ request()->routeIs('owner.notifications.index') ? 'bg-gradient-to-br from-cyan-400 to-blue-500 shadow-md shadow-cyan-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                <i class="fas fa-bell w-5 menu-icon text-center text-lg transition-all duration-300
+                          {{ request()->routeIs('owner.notifications.index') ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+            </div>
+            <span class="menu-text text-sm font-medium tracking-wide">Notification Center</span>
+            <span class="ml-auto menu-text text-[10px] px-2 py-0.5 rounded-full bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 border border-cyan-200/50 dark:border-cyan-700/30">New</span>
+        </a>
+
+        {{-- ====== PEMULIHAN DATA ====== --}}
+        @php
+            $isRestoreActive = request()->routeIs('owner.restore.*');
+        @endphp
+        <a href="{{ route('owner.restore.index') }}"
+           class="menu-item flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300
+                  {{ $isRestoreActive
+                      ? 'bg-gradient-to-r from-emerald-100/80 to-emerald-50/80 dark:from-emerald-900/40 dark:to-emerald-800/20 text-emerald-700 dark:text-emerald-300 shadow-sm shadow-emerald-500/10 border border-emerald-200/50 dark:border-emerald-700/30'
+                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+            <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                        {{ $isRestoreActive ? 'bg-gradient-to-br from-emerald-400 to-teal-500 shadow-md shadow-emerald-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                <i class="fas fa-shield-alt w-5 menu-icon text-center text-lg transition-all duration-300
+                          {{ $isRestoreActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+            </div>
+            <span class="menu-text text-sm font-medium tracking-wide">Pemulihan Data</span>
+            <span class="ml-auto menu-text text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-700/30">
+                <i class="fas fa-undo-alt mr-1"></i> Restore
+            </span>
+        </a>
+
+        {{-- ====== DROPDOWN: PENGATURAN ====== --}}
+        @php
+            $isSettingsActive = request()->routeIs('owner.settings.*');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                           {{ $isSettingsActive ? 'bg-blue-50/70 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                            {{ $isSettingsActive ? 'bg-gradient-to-br from-blue-400 to-cyan-500 shadow-md shadow-blue-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-cog w-5 menu-icon text-center text-lg transition-all duration-300
+                              {{ $isSettingsActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">Pengaturan</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isSettingsActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isSettingsActive ? '' : 'hidden' }}">
+                <a href="{{ route('owner.settings.profile') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-user-edit w-5 text-blue-500 dark:text-blue-400 text-center"></i>
+                    <span class="menu-text">Data Diri</span>
+                </a>
+                <a href="{{ route('owner.settings.general') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-sliders-h w-5 text-purple-500 dark:text-purple-400 text-center"></i>
+                    <span class="menu-text">Pengaturan</span>
+                </a>
+                <a href="{{ route('owner.settings.explore') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-compass w-5 text-emerald-500 dark:text-emerald-400 text-center"></i>
+                    <span class="menu-text">Jelajah</span>
+                </a>
+                <a href="{{ route('owner.settings.audit') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-history w-5 text-gray-500 dark:text-gray-400 text-center"></i>
+                    <span class="menu-text">Audit History</span>
+                </a>
+                <a href="{{ route('owner.settings') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-cog w-5 text-indigo-500 dark:text-indigo-400 text-center"></i>
+                    <span class="menu-text">General Settings</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- ====== DROPDOWN: SYSTEM ====== --}}
+        @php
+            $isSystemActive = request()->routeIs('owner.system.*');
+        @endphp
+        <div class="dropdown-group">
+            <button onclick="toggleDropdown(this)"
+                    class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300
+                           {{ $isSystemActive ? 'bg-gray-100/70 dark:bg-gray-700/30 text-gray-700 dark:text-gray-300' : 'text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 hover:shadow-sm' }}">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300
+                            {{ $isSystemActive ? 'bg-gradient-to-br from-gray-600 to-gray-800 shadow-md shadow-gray-500/20' : 'bg-gray-100 dark:bg-gray-700' }}">
+                    <i class="fas fa-server w-5 menu-icon text-center text-lg transition-all duration-300
+                              {{ $isSystemActive ? 'text-white scale-110' : 'text-gray-500 dark:text-gray-400 group-hover:scale-110' }}"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide flex-1">System</span>
+                <i class="fas fa-chevron-down menu-text text-xs text-gray-400 dark:text-gray-500 transition-transform duration-300 {{ $isSystemActive ? 'rotate-180' : '' }}"></i>
+            </button>
+            <div class="dropdown-content space-y-0.5 pl-2 {{ $isSystemActive ? '' : 'hidden' }}">
+                <a href="{{ route('owner.system.config') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-cog w-5 text-gray-500 dark:text-gray-400 text-center"></i>
+                    <span class="menu-text">Config</span>
+                </a>
+                <a href="{{ route('owner.system.backup') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-database w-5 text-yellow-500 dark:text-yellow-400 text-center"></i>
+                    <span class="menu-text">Backup</span>
+                </a>
+                <a href="{{ route('owner.system.health') }}" class="menu-item flex items-center gap-4 px-4 py-2 rounded-lg transition-all duration-300 text-gray-600 dark:text-gray-300 hover:text-gray-800 dark:hover:text-white hover:bg-gray-100/80 dark:hover:bg-gray-700/50 text-sm">
+                    <i class="fas fa-heartbeat w-5 text-red-500 dark:text-red-400 text-center"></i>
+                    <span class="menu-text">Health</span>
+                </a>
+            </div>
+        </div>
+
+        {{-- ====== DIVIDER & LOGOUT ====== --}}
+        <div class="pt-4 border-t border-gray-200/60 dark:border-gray-700/60 mt-3">
+            <button onclick="showLogoutModal(event)" class="menu-item flex items-center gap-4 w-full text-left px-4 py-3 rounded-xl transition-all duration-300 hover:bg-red-50/80 dark:hover:bg-red-900/20 hover:shadow-sm text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 group">
+                <div class="menu-icon-wrapper w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-300 bg-gray-100 dark:bg-gray-700 group-hover:bg-red-100 dark:group-hover:bg-red-900/30 group-hover:shadow-md group-hover:shadow-red-500/10">
+                    <i class="fas fa-sign-out-alt w-5 menu-icon text-center text-lg transition-all duration-300 text-red-400 dark:text-red-500 group-hover:text-red-600 dark:group-hover:text-red-400 group-hover:scale-110"></i>
+                </div>
+                <span class="menu-text text-sm font-medium tracking-wide">Keluar Akun</span>
+                <span class="ml-auto menu-text text-[10px] px-2 py-0.5 rounded-full bg-red-50 dark:bg-red-900/20 text-red-400 dark:text-red-400 border border-red-200/50 dark:border-red-700/30">Logout</span>
+            </button>
+        </div>
+    </nav>
+</aside>
+
+{{-- ============================================ --}}
+{{-- SIDEBAR JAVASCRIPT - INTERAKSI & ANIMASI --}}
+{{-- ============================================ --}}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // ---- Sidebar Toggle & Collapse (tetap) ----
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        const toggleBtn = document.getElementById('sidebar-toggle');
+        const closeMobileBtn = document.getElementById('sidebar-close-mobile');
+        const collapseBtn = document.getElementById('sidebar-collapse-btn');
+        const collapseIcon = document.getElementById('collapse-icon');
+        const isMobile = () => window.innerWidth < 1024;
+
+        function openMobileSidebar() {
+            sidebar.classList.add('open');
+            overlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        window.closeMobileSidebar = function() {
+            sidebar.classList.remove('open');
+            overlay.classList.remove('active');
+            document.body.style.overflow = '';
+        };
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                if (isMobile()) {
+                    if (sidebar.classList.contains('open')) closeMobileSidebar();
+                    else openMobileSidebar();
+                }
+            });
+        }
+
+        if (overlay) overlay.addEventListener('click', closeMobileSidebar);
+        if (closeMobileBtn) closeMobileBtn.addEventListener('click', closeMobileSidebar);
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('open')) closeMobileSidebar();
+        });
+
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', function() {
+                sidebar.classList.toggle('sidebar-collapsed');
+                const isCollapsed = sidebar.classList.contains('sidebar-collapsed');
+                localStorage.setItem('sidebar_collapsed', isCollapsed ? 'true' : 'false');
+                if (collapseIcon) {
+                    collapseIcon.classList.toggle('fa-chevron-left', !isCollapsed);
+                    collapseIcon.classList.toggle('fa-chevron-right', isCollapsed);
+                }
+            });
+            if (localStorage.getItem('sidebar_collapsed') === 'true') {
+                sidebar.classList.add('sidebar-collapsed');
+                if (collapseIcon) {
+                    collapseIcon.classList.remove('fa-chevron-left');
+                    collapseIcon.classList.add('fa-chevron-right');
+                }
+            }
+        }
+
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 1024 && sidebar.classList.contains('open')) closeMobileSidebar();
+        });
+
+        // ---- Highlight menu aktif ----
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('#sidebar-menu a, #sidebar-menu .menu-item:not(button)').forEach(link => {
+            const href = link.getAttribute('href');
+            if (href && (href === currentPath || (href !== '#' && currentPath.startsWith(href)))) {
+                link.classList.add('bg-gradient-to-r', 'from-amber-50', 'to-amber-100/70', 'dark:from-amber-900/40', 'dark:to-amber-800/20', 'text-amber-700', 'dark:text-amber-300', 'shadow-sm', 'shadow-amber-500/10', 'border', 'border-amber-200/50', 'dark:border-amber-700/30');
+            }
+        });
+
+        // ---- DROPDOWN TOGGLE FUNCTION ----
+        window.toggleDropdown = function(button) {
+            const group = button.closest('.dropdown-group');
+            const content = group.querySelector('.dropdown-content');
+            const icon = button.querySelector('.fa-chevron-down');
+            const isOpen = !content.classList.contains('hidden');
+
+            // Tutup semua dropdown lain
+            document.querySelectorAll('.dropdown-group .dropdown-content').forEach(el => {
+                if (el !== content) {
+                    el.classList.add('hidden');
+                    const parentBtn = el.closest('.dropdown-group').querySelector('button');
+                    const parentIcon = parentBtn?.querySelector('.fa-chevron-down');
+                    if (parentIcon) parentIcon.classList.remove('rotate-180');
+                }
+            });
+
+            content.classList.toggle('hidden');
+            if (icon) icon.classList.toggle('rotate-180');
+        };
+
+        // ---- Ripple effect ----
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function(e) {
+                if (this.closest('.dropdown-group') && this.tagName === 'BUTTON') return;
+                const rect = this.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                const ripple = document.createElement('span');
+                ripple.className = 'ripple-effect';
+                ripple.style.left = x + 'px';
+                ripple.style.top = y + 'px';
+                ripple.style.width = '150px';
+                ripple.style.height = '150px';
+                ripple.style.position = 'absolute';
+                ripple.style.borderRadius = '50%';
+                ripple.style.background = 'rgba(255,255,255,0.3)';
+                ripple.style.transform = 'translate(-50%, -50%) scale(0)';
+                ripple.style.animation = 'rippleAnim 0.6s ease-out forwards';
+                ripple.style.pointerEvents = 'none';
+                this.style.position = 'relative';
+                this.style.overflow = 'hidden';
+                this.appendChild(ripple);
+                setTimeout(() => ripple.remove(), 700);
+            });
+        });
+
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes rippleAnim {
+                to { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    });
+</script>
+
+dan diabwh ini isi file respurces/view/layouts/roles/onwer.blade.php
+{{-- resources/views/layouts/roles/owner.blade.php --}}
+<!DOCTYPE html>
+<html lang="id" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>@yield('title', 'Owner Dashboard – UNICODE')</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="description" content="Dashboard Owner UKM Pemrograman UNICODE">
+
+    {{-- Font Awesome --}}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    {{-- Google Font --}}
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    {{-- Tailwind --}}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        midnight: '#050A30',
+                        deepblue: '#0B1F6B',
+                        electric: '#2563EB',
+                        cyan: '#00D9FF',
+                        violet: '#9333EA',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #475569;
+        }
+
+        /* Sidebar transitions */
+        .sidebar-transition {
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Desktop collapsed state */
+        .sidebar-collapsed {
+            width: 72px !important;
+        }
+        .sidebar-collapsed .menu-text {
+            display: none !important;
+        }
+        .sidebar-collapsed .menu-icon {
+            margin-right: 0 !important;
+        }
+        .sidebar-collapsed .menu-item {
+            justify-content: center !important;
+            padding: 0.7rem 0 !important;
+        }
+        .sidebar-collapsed .menu-item span {
+            display: none !important;
+        }
+        .sidebar-collapsed .logo-text {
+            display: none !important;
+        }
+        .sidebar-collapsed .logo-container {
+            justify-content: center !important;
+        }
+        .sidebar-collapsed .sidebar-subtitle {
+            display: none !important;
+        }
+        .sidebar-collapsed .menu-label {
+            display: none !important;
+        }
+
+        /* Mobile sidebar (slide from left) */
+        .sidebar-mobile {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 280px;
+            transform: translateX(-100%);
+            z-index: 1000;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar-mobile.open {
+            transform: translateX(0);
+        }
+
+        /* Overlay */
+        .sidebar-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .sidebar-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* Dropdown animations */
+        .dropdown-enter {
+            animation: slideDown 0.2s ease forwards;
+        }
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-8px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* Badge pulse */
+        .badge-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.15);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        /* Content area adjustment */
+        .main-content-area {
+            transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        @media (max-width: 1023px) {
+            .main-content-area {
+                margin-left: 0 !important;
+            }
+        }
+
+        /* Mobile safe area */
+        @supports (padding: max(0px)) {
+            .safe-top {
+                padding-top: max(env(safe-area-inset-top), 0px);
+            }
+            .safe-bottom {
+                padding-bottom: max(env(safe-area-inset-bottom), 0px);
+            }
+        }
+
+        /* Modal backdrop */
+        .modal-backdrop {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+        }
+    </style>
+
+    @stack('styles')
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 antialiased">
+
+    {{-- Overlay untuk mobile --}}
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeMobileSidebar()" role="presentation"></div>
+
+    <div class="flex h-screen overflow-hidden">
+
+        {{-- SIDEBAR (desktop & mobile) --}}
+        @include('partials.roles.owner.sidebar')
+
+        {{-- MAIN CONTENT --}}
+        <div id="main-content" class="main-content-area flex-1 flex flex-col h-screen overflow-hidden w-full min-w-0">
+            {{-- HEADER --}}
+            @include('partials.roles.owner.header')
+
+            {{-- PAGE CONTENT --}}
+            <main class="flex-1 overflow-y-auto p-3 md:p-6 scroll-smooth bg-gray-50 dark:bg-gray-900">
+                @yield('content')
+            </main>
+
+            {{-- FOOTER --}}
+            @include('partials.roles.owner.footer')
+        </div>
+    </div>
+
+    {{-- LOGOUT CONFIRMATION MODAL (Improved) --}}
+    <div id="logout-confirm-modal"
+         class="fixed inset-0 z-50 flex items-center justify-center px-4 hidden opacity-0 transition-opacity duration-300 modal-backdrop"
+         role="dialog"
+         aria-modal="true"
+         aria-labelledby="logout-modal-title">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 transform transition-all duration-300 scale-95"
+             id="logout-modal-content">
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 dark:bg-red-900/20 mb-4">
+                    <i class="fas fa-sign-out-alt text-3xl text-red-600 dark:text-red-400"></i>
+                </div>
+                <h3 id="logout-modal-title" class="text-xl font-bold text-gray-900 dark:text-white">Konfirmasi Keluar</h3>
+                <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                    Apakah Anda yakin ingin keluar dari akun? Anda harus login kembali untuk mengakses dashboard.
+                </p>
+            </div>
+            <div class="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+                <button onclick="closeLogoutModal()"
+                        class="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-xl hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-400">
+                    Batal
+                </button>
+                <form id="logout-form" action="{{ route('logout') }}" method="POST" class="inline">
+                    @csrf
+                    <button type="submit"
+                            class="px-5 py-2.5 text-sm font-medium text-white bg-red-600 rounded-xl hover:bg-red-700 transition-colors shadow-md shadow-red-500/20 w-full focus:outline-none focus:ring-2 focus:ring-red-500">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Keluar 
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{-- SCRIPTS --}}
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        // --- Sidebar Toggle ---
+        const sidebar = document.querySelector('.sidebar-transition');
+        const overlay = document.getElementById('sidebar-overlay');
+        const mainContent = document.getElementById('main-content');
+
+        function toggleSidebar() {
+            if (window.innerWidth < 1024) {
+                // Mobile: toggle sidebar slide
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('active');
+            } else {
+                // Desktop: toggle collapse
+                sidebar.classList.toggle('sidebar-collapsed');
+                // Adjust main content margin if needed (optional)
+            }
+        }
+
+        function closeMobileSidebar() {
+            if (window.innerWidth < 1024) {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+            }
+        }
+
+        // Close sidebar on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeMobileSidebar();
+                closeLogoutModal();
+            }
+        });
+
+        // --- Logout Modal ---
+        const logoutModal = document.getElementById('logout-confirm-modal');
+        const logoutContent = document.getElementById('logout-modal-content');
+
+        function openLogoutModal() {
+            logoutModal.classList.remove('hidden');
+            // Trigger reflow for transition
+            void logoutModal.offsetWidth;
+            logoutModal.classList.remove('opacity-0');
+            logoutContent.classList.remove('scale-95');
+            logoutContent.classList.add('scale-100');
+            // Focus trap (simple)
+            logoutContent.querySelector('button:first-child')?.focus();
+        }
+
+        function closeLogoutModal() {
+            logoutContent.classList.remove('scale-100');
+            logoutContent.classList.add('scale-95');
+            logoutModal.classList.add('opacity-0');
+            setTimeout(() => {
+                logoutModal.classList.add('hidden');
+            }, 300);
+        }
+
+        // Bind logout trigger (if you have a logout button somewhere)
+        document.querySelectorAll('[data-trigger-logout]').forEach(el => {
+            el.addEventListener('click', function(e) {
+                e.preventDefault();
+                openLogoutModal();
+            });
+        });
+
+        // --- Notification Badge (Live Update via Polling) ---
+        // Set interval every 10 seconds to update unread count (optional)
+        // Or use Laravel Echo for realtime
+        function updateNotificationBadge() {
+            // Only run if user is logged in (check if we have notification element)
+            const badgeElement = document.querySelector('#notification-badge');
+            if (!badgeElement) return;
+
+            fetch('{{ route("owner.notifications.unread-count") }}', {
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                const count = data.count || 0;
+                if (count > 0) {
+                    badgeElement.textContent = count > 99 ? '99+' : count;
+                    badgeElement.classList.remove('hidden');
+                } else {
+                    badgeElement.classList.add('hidden');
+                }
+            })
+            .catch(err => console.warn('Notifikasi update gagal:', err));
+        }
+
+        // Optional: start polling after page load
+        // setInterval(updateNotificationBadge, 10000);
+        // Call once on load
+        // document.addEventListener('DOMContentLoaded', updateNotificationBadge);
+
+        // --- Utility: Mobile menu close on resize ---
+        window.addEventListener('resize', function() {
+            if (window.innerWidth >= 1024) {
+                closeMobileSidebar();
+            }
+        });
+
+        // --- Custom event for logout trigger from header ---
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest('[data-action="logout"]');
+            if (target) {
+                e.preventDefault();
+                openLogoutModal();
+            }
+        });
+    </script>
+
+    @stack('scripts')
+</body>
+</html>
+saya mau dibuatkan sistem lebih matang dan juga jelas lebih detail leboh profeisonal versi lnegkap dna juga penjeengalan diman data maksudnya buatkan isi barsi kdoenya pada file dan dimana file folder yang perlu saya tambahkan ,buat baru,atau perbikin dna smepurnakan lebih matang

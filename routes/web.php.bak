@@ -1,0 +1,47 @@
+# Generasi & Fee Plan
+php artisan make:migration create_generations_table
+php artisan make:migration create_fee_plans_table
+php artisan make:migration create_fee_plan_versions_table
+
+# Kalender & Hari Libur
+php artisan make:migration create_ukm_calendars_table
+php artisan make:migration create_holidays_table
+php artisan make:migration create_academic_periods_table
+
+# Invoice & Item
+php artisan make:migration create_invoices_table
+php artisan make:migration create_invoice_items_table
+
+# Pembayaran
+php artisan make:migration create_payment_transactions_table
+php artisan make:migration create_payment_allocations_table
+php artisan make:migration create_payment_attempts_table
+
+# Denda & Pelanggaran
+php artisan make:migration create_penalty_rules_table
+php artisan make:migration create_late_cases_table
+php artisan make:migration create_warning_records_table
+php artisan make:migration create_disciplinary_cases_table
+
+# Poin
+php artisan make:migration create_point_accounts_table
+php artisan make:migration create_point_transactions_table
+
+# Campaign (ID Card, Event, Reuni)
+php artisan make:migration create_financial_campaigns_table
+php artisan make:migration create_campaign_targets_table
+php artisan make:migration create_campaign_participants_table
+
+# Approval & Reaktivasi
+php artisan make:migration create_approval_requests_table
+php artisan make:migration create_approval_actions_table
+php artisan make:migration create_reactivation_requests_table
+
+# Sponsor & Lainnya
+php artisan make:migration create_sponsors_table
+php artisan make:migration create_sponsorships_table
+php artisan make:migration create_financial_announcements_table
+php artisan make:migration create_financial_ledger_table
+
+# Tambahkan kolom generation_id ke users
+php artisan make:migration add_generation_id_to_users_table

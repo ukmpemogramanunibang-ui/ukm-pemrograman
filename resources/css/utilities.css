@@ -1,0 +1,30 @@
+html{
+    scroll-behavior:smooth;
+}
+
+body{
+    font-family:"Inter",sans-serif;
+}
+
+html.dark{
+    color-scheme:dark;
+}
+
+::selection{
+    background:#2563eb;
+    color:#fff;
+}
+
+::-webkit-scrollbar{
+    width:10px;
+}
+
+::-webkit-scrollbar-thumb{
+    border-radius:20px;
+}
+
+.container-app{
+    max-width:1500px;
+    margin:auto;
+    padding-inline:20px;
+}

@@ -1,0 +1,110 @@
+/* ======================================================
+   CUSTOM CSS – UKM Pemrograman UNICODE
+====================================================== */
+
+/* Reset & Base */
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Container */
+.container {
+    max-width: 1280px;
+}
+
+/* Hero Animation */
+.float-animation {
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
+}
+
+/* Marquee */
+.animate-marquee {
+    animation: marquee 30s linear infinite;
+}
+
+@keyframes marquee {
+    0% { transform: translateX(100%); }
+    100% { transform: translateX(-100%); }
+}
+
+/* Smooth hover transitions */
+.hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -10px rgba(0,0,0,0.2);
+}
+
+/* Dark mode card */
+.dark .bg-white {
+    background-color: #1f2937;
+}
+.dark .border-gray-100 {
+    border-color: #374151;
+}
+.dark .text-gray-600 {
+    color: #d1d5db;
+}
+.dark .text-gray-500 {
+    color: #9ca3af;
+}
+
+/* Gradient text */
+.gradient-text {
+    background: linear-gradient(135deg, #00D9FF, #2563EB, #7C3AED);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #00D9FF, #2563EB);
+    border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #2563EB;
+}
+
+/* FAQ Accordion */
+.faq-content {
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+.faq-content.hidden {
+    max-height: 0;
+    opacity: 0;
+    padding: 0 1.5rem;
+}
+.faq-content:not(.hidden) {
+    max-height: 500px;
+    opacity: 1;
+    padding: 1rem 1.5rem 1.5rem;
+}
+
+/* Responsive tweaks */
+@media (max-width: 640px) {
+    .hero-title {
+        font-size: 2rem;
+    }
+    .container {
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+}

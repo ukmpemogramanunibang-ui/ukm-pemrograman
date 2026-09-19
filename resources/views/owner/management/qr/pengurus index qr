@@ -1,0 +1,121 @@
+@extends('layouts.roles.owner')
+
+@section('title', 'QR Code Pengurus – Owner UNICODE')
+@section('page-title', 'Manajemen QR Pengurus')
+
+@section('content')
+<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+    <div class="p-6">
+
+        {{-- Header --}}
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h3 class="text-2xl font-bold text-gray-800 dark:text-white">QR Code Pengurus</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Kelola QR Code khusus pengurus UKM.</p>
+            </div>
+            <a href="{{ route('owner.officials.qr.generate') }}"
+               class="px-4 py-2 bg-gradient-to-r from-cyan to-blue-600 text-white font-bold rounded-lg hover:shadow-lg transition">
+                <i class="fas fa-plus mr-2"></i> Generate QR
+            </a>
+        </div>
+
+        {{-- Statistik (hanya untuk pengurus) --}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-5 border border-orange-200 dark:border-orange-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-orange-100 dark:bg-orange-800/30 flex items-center justify-center text-2xl text-orange-600 dark:text-orange-400">
+                        <i class="fas fa-user-slash"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Belum QR</p>
+                        <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ $officialWithoutQr ?? 0 }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-green-50 dark:bg-green-900/20 rounded-xl p-5 border border-green-200 dark:border-green-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-green-100 dark:bg-green-800/30 flex items-center justify-center text-2xl text-green-600 dark:text-green-400">
+                        <i class="fas fa-qrcode"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Sudah QR</p>
+                        <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ $officialWithQr ?? 0 }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-red-50 dark:bg-red-900/20 rounded-xl p-5 border border-red-200 dark:border-red-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-800/30 flex items-center justify-center text-2xl text-red-600 dark:text-red-400">
+                        <i class="fas fa-ban"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">QR Diblokir</p>
+                        <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ $qrBlockedOfficial ?? 0 }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-yellow-50 dark:bg-yellow-900/20 rounded-xl p-5 border border-yellow-200 dark:border-yellow-800">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-full bg-yellow-100 dark:bg-yellow-800/30 flex items-center justify-center text-2xl text-yellow-600 dark:text-yellow-400">
+                        <i class="fas fa-user-lock"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Akun Nonaktif</p>
+                        <p class="text-2xl font-bold text-gray-800 dark:text-white">{{ $officialInactive ?? 0 }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Tabel Pengurus dengan QR --}}
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm text-left text-gray-600 dark:text-gray-300">
+                <thead class="bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200">
+                    <tr>
+                        <th class="px-4 py-3">#</th>
+                        <th class="px-4 py-3">Nama</th>
+                        <th class="px-4 py-3">NIM</th>
+                        <th class="px-4 py-3">Jabatan</th>
+                        <th class="px-4 py-3">Status QR</th>
+                        <th class="px-4 py-3 text-center">Aksi</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($officials as $official)
+                        <tr class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                            <td class="px-4 py-3">{{ $loop->iteration }}</td>
+                            <td class="px-4 py-3 font-medium">{{ $official->name }}</td>
+                            <td class="px-4 py-3">{{ $official->nim ?? '-' }}</td>
+                            <td class="px-4 py-3">
+                                @php $primary = $official->jabatans->where('pivot.is_primary', true)->first(); @endphp
+                                <span class="px-2 py-1 bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-200 rounded-full text-xs">
+                                    {{ $primary ? $primary->name : 'Pengurus' }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                @if($official->qrCodes->where('is_active', 1)->count() > 0)
+                                    <span class="text-green-600 dark:text-green-400"><i class="fas fa-check-circle"></i> Aktif</span>
+                                @elseif($official->qrCodes->where('is_active', 0)->count() > 0)
+                                    <span class="text-red-600 dark:text-red-400"><i class="fas fa-ban"></i> Diblokir</span>
+                                @else
+                                    <span class="text-gray-400"><i class="fas fa-minus-circle"></i> Tidak ada</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <a href="{{ route('owner.officials.qr.detail', $official->id) }}" class="text-cyan-600 hover:text-cyan-800"><i class="fas fa-eye"></i></a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="px-4 py-6 text-center text-gray-400">Belum ada pengurus dengan QR.</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        {{-- Pagination --}}
+        <div class="mt-6">
+            {{ $officials->withQueryString()->links() }}
+        </div>
+    </div>
+</div>
+@endsection
