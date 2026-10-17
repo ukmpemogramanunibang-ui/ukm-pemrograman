@@ -397,6 +397,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/callback', [GoogleDriveController::class, 'callback'])->name('callback');
         Route::get('/revoke',   [GoogleDriveController::class, 'revoke'])->name('revoke');
     });
+    Route::post('/switch-organization/{organization}', function (\App\Models\Organization $organization) {
+    $ok = \App\Services\OrganizationContext::authorize(auth()->user(), $organization->id);
+    abort_unless($ok, 403);
+    \App\Services\OrganizationContext::set($organization->id);
+    return back()->with('success', "Beralih ke {$organization->name}");
+})->name('organization.switch');
+
+Route::get('/my-organizations', function () {
+    return view('organization.selector', [
+        'organizations' => auth()->user()->activeOrganizations()->get(),
+    ]);
+})->name('organization.selector');
         /* ════════════════════════════════════════════════════════
      | 5.1b DASHBOARD ITEM VISIBILITY
      | Personal hide/show per user untuk card dashboard.

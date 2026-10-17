@@ -137,6 +137,8 @@ class AppServiceProvider extends ServiceProvider
         $this->safe(fn () => $this->configureDatabaseGuards());
         $this->safe(fn () => $this->configureQueueEvents());
         \App\Models\DashboardItem::observe(\App\Observers\DashboardItemObserver::class);
+            \App\Models\User::observe(\App\Observers\UserObserver::class);
+
     }
 
     /** Jalankan method, tapi jangan sampai error satu method mematikan boot. */

@@ -4,88 +4,142 @@ namespace App\Observers;
 
 use App\Models\User;
 use App\Services\DataProtectionService;
+use App\Services\OrganizationAutoEnrollService;
 use App\Services\QrRecoveryService;
 use Illuminate\Support\Facades\Log;
-use Spatie\Permission\Models\Role;   // 🔥 WAJIB
+use Spatie\Permission\Models\Role;
 
 class UserObserver
 {
-    protected DataProtectionService $protection;
+    /**
+     * Level yang di-auto-assign Spatie role berdasarkan level_id.
+     *
+     * ⚠️ Diverifikasi terhadap data `roles` di DB:
+     *    - 1 owner, 2 superadmin, 3 ketua, 4 pengurus inti,
+     *      5 pj/assisten, 6 anggota kelompok, 7 anggota umum,
+     *      8 pengunjung, 9 pengurus, 10 anggota, 11 guest
+     *
+     * Mapping level_id (dari LevelStatusSeeder):
+     *    1 => owner
+     *    2 => superadmin
+     *    3 => ketua
+     *    4 => pengurus inti
+     *    5 => anggota
+     *    6 => anggota umum
+     *    7 => pj/assisten
+     *    8 => guest
+     */
+    private const LEVEL_ROLE_MAP = [
+        1 => 'owner',
+        2 => 'superadmin',
+        3 => 'ketua',
+        4 => 'pengurus inti',
+        5 => 'anggota',
+        6 => 'anggota umum',
+        7 => 'pj/assisten',
+        8 => 'guest',
+    ];
 
-    public function __construct(DataProtectionService $protection)
-    {
-        $this->protection = $protection;
-    }
+    /**
+     * Level yang TIDAK di-auto-enroll ke organisasi:
+     *   1 owner, 2 superadmin, 8 guest
+     */
+    private const SKIP_ORG_ENROLL_LEVELS = [1, 2, 8];
+
+    /* ═══════════════════════════════════════════════════════
+     | EVENTS — SATU METHOD created(), BUKAN DUA
+     * ═══════════════════════════════════════════════════════ */
 
     public function created(User $user): void
     {
-        $this->syncUser($user);
-        $this->syncRoleByLevel($user);   // ← assign role saat user baru dibuat
+        $this->safe('syncUser',              fn () => $this->syncUser($user), $user);
+        $this->safe('syncRoleByLevel',       fn () => $this->syncRoleByLevel($user), $user);
+        $this->safe('autoEnrollOrganization', fn () => $this->autoEnrollOrganization($user), $user);
     }
 
     public function updated(User $user): void
     {
-        if ($user->isDirty('level_id')) {
-            $this->syncRoleByLevel($user);
+        if (!$user->isDirty('level_id')) {
+            return;
         }
+
+        $this->safe('syncRoleByLevel', fn () => $this->syncRoleByLevel($user), $user);
     }
 
     public function deleted(User $user): void
     {
-        $this->syncUser($user);
+        $this->safe('syncUser', fn () => $this->syncUser($user), $user);
     }
 
     public function restored(User $user): void
     {
-        $this->syncUser($user);
-        $this->syncRoleByLevel($user);
+        $this->safe('syncUser',        fn () => $this->syncUser($user), $user);
+        $this->safe('syncRoleByLevel', fn () => $this->syncRoleByLevel($user), $user);
     }
 
     public function saved(User $user): void
     {
-        app(QrRecoveryService::class)->generateSnapshot($user);
+        if (empty($user->user_uuid)) return;
+
+        $this->safe('generateQrSnapshot', function () use ($user) {
+            app(QrRecoveryService::class)->generateSnapshot($user);
+        }, $user);
     }
 
-    /**
-     * Auto-assign Spatie role berdasarkan level_id.
-     */
-    protected function syncRoleByLevel(User $user): void
-    {
-        $map = [
-            1 => 'owner',
-            2 => 'superadmin',
-            3 => 'ketua',
-            4 => 'pengurus',
-            5 => 'anggota',
-            6 => 'anggota umum',
-            7 => 'pengunjung',
-        ];
+    /* ═══════════════════════════════════════════════════════
+     | HELPERS — masing-masing tanggung jawab tunggal
+     * ═══════════════════════════════════════════════════════ */
 
-        $roleName = $map[(int) $user->level_id] ?? null;
-
-        if ($roleName && Role::where('name', $roleName)->exists()) {
-            try {
-                $user->syncRoles([$roleName]);
-            } catch (\Throwable $e) {
-                Log::warning('[UserObserver] syncRole gagal', [
-                    'user_id' => $user->id,
-                    'role'    => $roleName,
-                    'error'   => $e->getMessage(),
-                ]);
-            }
-        }
-    }
-
-    protected function syncUser(User $user): void
+    private function safe(string $label, callable $action, User $user): void
     {
         try {
-            $this->protection->syncUser($user);
-            Log::info('User auto-synced to protected DB', ['user_uuid' => $user->user_uuid]);
-        } catch (\Exception $e) {
-            Log::error('Auto-sync user failed', [
-                'user_uuid' => $user->user_uuid,
-                'error'     => $e->getMessage()
+            $action();
+        } catch (\Throwable $e) {
+            Log::error("[UserObserver::{$label}] failed", [
+                'user_id'   => $user->id,
+                'user_uuid' => $user->user_uuid ?? null,
+                'level_id'  => $user->level_id,
+                'error'     => $e->getMessage(),
+                'file'      => $e->getFile(),
+                'line'      => $e->getLine(),
             ]);
         }
+    }
+
+    private function syncUser(User $user): void
+    {
+        app(DataProtectionService::class)->syncUser($user);
+        Log::info('[UserObserver] User synced to protected DB.', [
+            'user_uuid' => $user->user_uuid,
+        ]);
+    }
+
+    private function syncRoleByLevel(User $user): void
+    {
+        $roleName = self::LEVEL_ROLE_MAP[(int) $user->level_id] ?? null;
+        if (!$roleName) return;
+
+        $role = Role::where('name', $roleName)->first();
+        if (!$role) {
+            Log::warning('[UserObserver::syncRole] Role tidak ditemukan.', [
+                'user_id' => $user->id,
+                'role'    => $roleName,
+            ]);
+            return;
+        }
+
+        // Idempotent: skip kalau sudah punya
+        if ($user->hasRole($roleName)) return;
+
+        $user->syncRoles([$roleName]);
+    }
+
+    private function autoEnrollOrganization(User $user): void
+    {
+        if (in_array((int) $user->level_id, self::SKIP_ORG_ENROLL_LEVELS, true)) {
+            return;
+        }
+
+        app(OrganizationAutoEnrollService::class)->autoEnroll($user);
     }
 }

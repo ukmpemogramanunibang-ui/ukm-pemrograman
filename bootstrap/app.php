@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\LogUserActivity::class,
             \App\Http\Middleware\ImpersonationGuard::class,
             \App\Http\Middleware\BlockNonOwnerGlobal::class,
+             \App\Http\Middleware\SetOrganizationContext::class,
         ]);
 
         /* ---------- 4. API ---------- */

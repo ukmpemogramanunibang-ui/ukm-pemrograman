@@ -108,7 +108,7 @@
 
         <div class="grid sm:grid-cols-3 gap-3">
             @foreach ([
-p                ['roles', 'fa-users-cog',  'Target Role',   'purple', 'Satu atau beberapa role'],
+                ['roles', 'fa-users-cog',  'Target Role',   'purple', 'Satu atau beberapa role'],
                 ['users', 'fa-user-check', 'Target Pribadi','amber',  'Satu atau beberapa akun'],
             ] as [$val, $ic, $title, $color, $desc])
                 @php $checked = old('audience_mode', $item->audience_mode ?? 'all') === $val; @endphp
@@ -201,7 +201,9 @@ p                ['roles', 'fa-users-cog',  'Target Role',   'purple', 'Satu ata
             </div>
         </div>
 
-        @php $bg = old('background_type', $item->background_type ?? 'plain'); @endphp
+        @php
+    $bg = old('background_type', $item->background_type ?? 'plain');
+@endphp
         <div class="grid sm:grid-cols-3 gap-3">
             @foreach ([
                 ['plain', 'fa-fill',    'Polos'],
@@ -210,8 +212,8 @@ p                ['roles', 'fa-users-cog',  'Target Role',   'purple', 'Satu ata
             ] as [$val, $ic, $label])
                 <label class="cursor-pointer">
                     <input type="radio" name="background_type" value="{{ $val }}"
-                           {{ $bg === $val ? 'checked' : '' }} class="peer sr-only"
-                           @change="bgType = $event.target.value">
+       {{ ($bg ?? null) === $val ? 'checked' : '' }} class="peer sr-only"
+       @change="bgType = $event.target.value">
                     <div class="p-4 rounded-xl border-2 border-gray-200 dark:border-gray-700 text-center transition
                                 peer-checked:border-pink-500 peer-checked:bg-pink-50 dark:peer-checked:bg-pink-900/20">
                         <i class="fas {{ $ic }} text-pink-500 text-lg"></i>
