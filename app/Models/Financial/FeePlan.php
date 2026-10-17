@@ -63,10 +63,21 @@ class FeePlan extends Model
         return $this->belongsTo(Generation::class);
     }
 
-    public function invoices()
-    {
-        return $this->hasMany(Invoice::class);
-    }
+public function invoices()
+{
+    return $this->hasMany(\App\Models\Financial\Invoice::class, 'fee_plan_id');
+}
+
+public function scopeCurrentlyActive($query)
+{
+    return $query->where('status', 'active')
+        ->where(function ($q) {
+            $q->whereNull('effective_from')->orWhere('effective_from', '<=', now());
+        })
+        ->where(function ($q) {
+            $q->whereNull('effective_until')->orWhere('effective_until', '>=', now());
+        });
+}
 
     public function creator()
     {

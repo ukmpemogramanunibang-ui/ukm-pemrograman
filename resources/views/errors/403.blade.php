@@ -1,27 +1,62 @@
-@extends('layouts.app')
-
-@section('title', '403 – Akses Ditolak')
-
-@section('content')
-<div class="min-h-[70vh] flex flex-col items-center justify-center text-center space-y-6 max-w-2xl mx-auto px-4">
-    <div class="relative w-64 h-64 flex items-center justify-center">
-        <div class="absolute inset-0 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-full blur-3xl animate-pulse"></div>
-        <div class="relative z-10 bg-white dark:bg-gray-800 rounded-full p-8 border border-gray-200 dark:border-gray-700 w-48 h-48 flex items-center justify-center text-7xl text-red-500 dark:text-red-400 shadow-2xl">
-            <i class="fas fa-shield-alt"></i>
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Akses Ditolak – UNICODE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="h-full bg-gradient-to-br from-purple-50 via-white to-pink-50 dark:from-gray-900 dark:via-gray-900 dark:to-purple-950
+             flex items-center justify-center p-6">
+    <div class="max-w-lg w-full text-center">
+        <div class="w-24 h-24 mx-auto mb-6 rounded-3xl
+                    bg-gradient-to-br from-rose-500 to-red-600
+                    flex items-center justify-center shadow-2xl">
+            <i class="fas fa-shield-alt text-4xl text-white"></i>
         </div>
-        <div class="absolute -bottom-2 -left-2 bg-cyan-500/10 p-3 rounded-full text-cyan-500 text-xl animate-pulse">
-            <i class="fas fa-lock"></i>
+
+        <h1 class="text-6xl font-black text-gray-900 dark:text-white mb-2">403</h1>
+        <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-3">
+            Akses Ditolak
+        </h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-6">
+            {{ $message ?? 'Anda tidak memiliki izin untuk mengakses halaman ini.' }}
+        </p>
+
+        @if (!empty($reason))
+            <div class="p-3 rounded-xl bg-amber-50 dark:bg-amber-900/20
+                        border border-amber-200 dark:border-amber-800
+                        text-xs text-amber-700 dark:text-amber-300 mb-6">
+                <i class="fas fa-info-circle mr-1"></i>
+                {{ $reason }}
+            </div>
+        @endif
+
+        <div class="flex flex-wrap justify-center gap-2">
+            <a href="{{ url()->previous() !== url()->current() ? url()->previous() : '/' }}"
+               class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl
+                      bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700
+                      text-gray-700 dark:text-gray-200 text-sm font-semibold transition">
+                <i class="fas fa-arrow-left"></i> Kembali
+            </a>
+
+            @auth
+                <a href="{{ auth()->user()->getDashboardRoute() }}"
+                   class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl
+                          bg-purple-600 hover:bg-purple-700 text-white
+                          text-sm font-bold shadow-lg shadow-purple-500/20 transition">
+                    <i class="fas fa-home"></i> Ke Dashboard Saya
+                </a>
+            @else
+                <a href="{{ route('login') }}"
+                   class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl
+                          bg-purple-600 hover:bg-purple-700 text-white
+                          text-sm font-bold shadow-lg shadow-purple-500/20 transition">
+                    <i class="fas fa-sign-in-alt"></i> Login
+                </a>
+            @endauth
         </div>
     </div>
-
-    <h1 class="text-6xl font-extrabold text-gray-800 dark:text-white">403</h1>
-    <h2 class="text-2xl font-bold text-red-500 dark:text-red-400">Akses Ditolak!</h2>
-    <p class="text-gray-500 dark:text-gray-400 max-w-md">
-        Anda tidak memiliki izin untuk mengakses halaman ini. Hubungi administrator jika ini kesalahan.
-    </p>
-
-    <a href="{{ route('landing') }}" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition">
-        <i class="fas fa-home mr-2"></i> Kembali ke Beranda
-    </a>
-</div>
-@endsection
+</body>
+</html>

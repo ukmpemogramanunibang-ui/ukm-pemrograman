@@ -27,62 +27,62 @@ class RoomAccessController extends Controller
     // ============================================================
     // 1. HALAMAN PUBLIK – TANPA LOGIN
     // ============================================================
-   public function publicIndex(Request $request)
+public function publicIndex(Request $request)
 {
     $roomToken = $request->query('room_token');
 
-    $query = \App\Models\Room::query()
+    $query = Room::query()
         ->whereIn('public_status', ['public', 'both'])
-        ->with(['facilities']);
+        ->with([
+            'facilities',
+            'bookings' => fn ($q) => $q
+                ->where('status', 'Disetujui')
+                ->whereDate('start_datetime', today())
+                ->orderBy('start_datetime'),
+            'schedules' => fn ($q) => $q
+                ->orderBy('start_datetime')
+                ->limit(8),
+        ]);
 
-    if ($roomToken) {
-        $query->where('room_token', $roomToken);
-    }
+    if ($roomToken)                    $query->where('room_token', $roomToken);
+    if ($request->filled('floor'))     $query->where('floor', $request->floor);
+    if ($request->filled('category'))  $query->where('category', $request->category);
+    if ($request->filled('status'))    $query->where('status', $request->status);
+    if ($request->filled('condition')) $query->where('condition', $request->condition);
 
-    if ($request->filled('floor')) {
-        $query->where('floor', $request->floor);
-    }
-    if ($request->filled('category')) {
-        $query->where('category', $request->category);
-    }
-    if ($request->filled('status')) {
-        $query->where('status', $request->status);
-    }
-    if ($request->filled('condition')) {
-        $query->where('condition', $request->condition);
+    if ($request->boolean('booking_today')) {
+        $query->whereHas('bookings', fn ($q) => $q
+            ->where('status', 'Disetujui')
+            ->whereDate('start_datetime', today()));
     }
 
     $rooms = $query->latest('id')->paginate(12)->withQueryString();
 
-    $floors = \App\Models\Room::whereIn('public_status', ['public', 'both'])
-        ->whereNotNull('floor')
-        ->distinct()
-        ->pluck('floor');
+    // ✅ SIDEBAR: semua ruangan publik, dikelompokkan per lantai
+    $roomsByFloor = Room::query()
+        ->whereIn('public_status', ['public', 'both'])
+        ->when($roomToken, fn ($q) => $q->where('room_token', $roomToken))
+        ->orderBy('name')
+        ->get()
+        ->groupBy('floor')
+        ->sortBy(function ($group, $floor) {
+            if (preg_match('/Lantai\s+(\d+)/i', (string) $floor, $m)) return 100 + (int) $m[1];
+            if (preg_match('/Basement\s+(\d+)/i', (string) $floor, $m)) return 50 + (int) $m[1];
+            if (stripos((string) $floor, 'loteng') !== false) return 500;
+            if (stripos((string) $floor, 'aula')   !== false) return 510;
+            return 999;
+        });
 
-    $categories = \App\Models\Room::whereIn('public_status', ['public', 'both'])
-        ->whereNotNull('category')
-        ->distinct()
-        ->pluck('category');
+    $floors     = Room::whereIn('public_status', ['public','both'])->whereNotNull('floor')->distinct()->pluck('floor');
+    $categories = Room::whereIn('public_status', ['public','both'])->whereNotNull('category')->distinct()->pluck('category');
+    $statuses   = Room::whereIn('public_status', ['public','both'])->whereNotNull('status')->distinct()->pluck('status');
+    $conditions = Room::whereIn('public_status', ['public','both'])->whereNotNull('condition')->distinct()->pluck('condition');
 
-    $statuses = \App\Models\Room::whereIn('public_status', ['public', 'both'])
-        ->whereNotNull('status')
-        ->distinct()
-        ->pluck('status');
-
-    $conditions = \App\Models\Room::whereIn('public_status', ['public', 'both'])
-        ->whereNotNull('condition')
-        ->distinct()
-        ->pluck('condition');
-
-    // ✅ PERBAIKAN: gunakan 'room_publik.index'
     return view('room_publik.index', compact(
-        'rooms',
-        'floors',
-        'categories',
-        'statuses',
-        'conditions'
+        'rooms', 'roomsByFloor', 'floors', 'categories', 'statuses', 'conditions'
     ));
 }
+
 public function publicRealtime(string $token)
 {
     $room = \App\Models\Room::query()

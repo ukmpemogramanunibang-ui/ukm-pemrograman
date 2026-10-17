@@ -4,39 +4,39 @@
 
 @section('content')
 
-<div class="min-h-screen bg-gradient-to-br from-midnight via-deepblue to-midnight text-white">
+<div class="min-h-screen bg-slate-50 text-slate-900 dark:bg-gradient-to-br dark:from-midnight dark:via-deepblue dark:to-midnight dark:text-white">
 
     {{-- STEPPER HEADER --}}
-    <section class="border-b border-white/10 bg-black/30 backdrop-blur-md sticky top-0 z-40">
-        <div class="container mx-auto px-4 py-4 flex items-center justify-between gap-4 flex-wrap">
+    <section class="sticky top-0 z-40 border-b border-slate-200 bg-white/90 backdrop-blur-md dark:border-white/10 dark:bg-black/30">
+        <div class="container mx-auto flex flex-wrap items-center justify-between gap-4 px-4 py-4">
             <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-cyan to-electric flex items-center justify-center">
+                <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan to-electric text-white">
                     <i class="fas fa-wand-magic-sparkles"></i>
                 </div>
                 <div>
-                    <h1 class="font-extrabold text-lg md:text-xl">PPT Interaktif</h1>
-                    <p class="text-xs text-gray-400">Presentasi dengan Gestur & AI</p>
+                    <h1 class="text-lg font-extrabold md:text-xl">PPT Interaktif</h1>
+                    <p class="text-xs text-slate-500 dark:text-gray-400">Presentasi dengan Gestur & AI</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-1 md:gap-3 text-[11px] md:text-xs font-bold">
+            <div class="flex items-center gap-1 text-[11px] font-bold md:gap-3 md:text-xs">
                 <div class="stepper-item flex items-center gap-2" data-step="1">
-                    <span class="w-7 h-7 rounded-full bg-cyan text-midnight flex items-center justify-center">1</span>
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-cyan text-white dark:text-midnight">1</span>
                     <span class="hidden md:inline">Upload File</span>
                 </div>
-                <div class="w-6 h-0.5 bg-white/20"></div>
+                <div class="h-0.5 w-6 bg-slate-300 dark:bg-white/20"></div>
                 <div class="stepper-item flex items-center gap-2 opacity-50" data-step="2">
-                    <span class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">2</span>
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-slate-500 dark:bg-white/20 dark:text-white">2</span>
                     <span class="hidden md:inline">Deteksi Wajah</span>
                 </div>
-                <div class="w-6 h-0.5 bg-white/20"></div>
+                <div class="h-0.5 w-6 bg-slate-300 dark:bg-white/20"></div>
                 <div class="stepper-item flex items-center gap-2 opacity-50" data-step="3">
-                    <span class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">3</span>
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-slate-500 dark:bg-white/20 dark:text-white">3</span>
                     <span class="hidden md:inline">Rekam Gestur</span>
                 </div>
-                <div class="w-6 h-0.5 bg-white/20"></div>
+                <div class="h-0.5 w-6 bg-slate-300 dark:bg-white/20"></div>
                 <div class="stepper-item flex items-center gap-2 opacity-50" data-step="4">
-                    <span class="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">4</span>
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-slate-500 dark:bg-white/20 dark:text-white">4</span>
                     <span class="hidden md:inline">Presentasi</span>
                 </div>
             </div>
@@ -47,131 +47,131 @@
 
         {{-- ==================== TAHAP 1 — UPLOAD FILE ==================== --}}
         <div id="panel-step1" class="step-panel">
-            <div class="max-w-3xl mx-auto">
-                <div class="text-center mb-8">
-                    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan/10 border border-cyan/30 text-cyan-200 text-xs font-bold mb-4">
+            <div class="mx-auto max-w-3xl">
+                <div class="mb-8 text-center">
+                    <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan/30 bg-cyan/10 px-4 py-1.5 text-xs font-bold text-cyan-600 dark:text-cyan-200">
                         <i class="fas fa-1"></i> Tahap 1 dari 4
                     </div>
-                    <h2 class="text-3xl md:text-4xl font-extrabold">
+                    <h2 class="text-3xl font-extrabold md:text-4xl">
                         Upload File <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan to-violet">Presentasi</span>
                     </h2>
-                    <p class="text-gray-400 mt-3 text-sm md:text-base">
+                    <p class="mt-3 text-sm text-slate-500 dark:text-gray-400 md:text-base">
                         Maksimal <strong>3 file</strong>, masing-masing <strong>12MB</strong>. Format: PPT, PPTX, PDF, DOC, DOCX, XLS, XLSX, JPG, PNG.
                     </p>
                 </div>
 
                 <div id="dropzone"
-                     class="border-2 border-dashed border-cyan/40 rounded-3xl p-8 md:p-12 text-center hover:border-cyan hover:bg-cyan/5 transition cursor-pointer bg-white/5">
+                     class="cursor-pointer rounded-3xl border-2 border-dashed border-cyan/40 bg-white p-8 text-center transition hover:border-cyan hover:bg-cyan/5 dark:bg-white/5 md:p-12">
                     <input type="file" id="fileInput" class="hidden" multiple
                            accept=".ppt,.pptx,.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
-                    <i class="fas fa-cloud-arrow-up text-6xl text-cyan/70 mb-4"></i>
-                    <p class="font-bold text-lg">Seret & lepas file di sini</p>
-                    <p class="text-xs text-gray-400 my-3">atau</p>
+                    <i class="fas fa-cloud-arrow-up mb-4 text-6xl text-cyan/70"></i>
+                    <p class="text-lg font-bold">Seret & lepas file di sini</p>
+                    <p class="my-3 text-xs text-slate-500 dark:text-gray-400">atau</p>
                     <button type="button" id="browseBtn"
-                            class="px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan to-electric text-midnight font-extrabold shadow-lg hover:shadow-cyan/50 transition">
+                            class="rounded-2xl bg-gradient-to-r from-cyan to-electric px-6 py-3 font-extrabold text-white shadow-lg transition hover:shadow-cyan/50 dark:text-midnight">
                         <i class="fas fa-folder-open mr-2"></i> Pilih File
                     </button>
                 </div>
 
                 <div class="mt-6">
-                    <div class="flex items-center justify-between mb-3">
-                        <p class="font-bold text-sm">File yang diupload</p>
-                        <p class="text-xs text-gray-400"><span id="fileCountLabel">0</span> / 3 file</p>
+                    <div class="mb-3 flex items-center justify-between">
+                        <p class="text-sm font-bold">File yang diupload</p>
+                        <p class="text-xs text-slate-500 dark:text-gray-400"><span id="fileCountLabel">0</span> / 3 file</p>
                     </div>
                     <div id="fileList" class="space-y-3">
-                        <p class="text-xs text-gray-500 italic">Belum ada file yang diupload.</p>
+                        <p class="text-xs italic text-slate-400 dark:text-gray-500">Belum ada file yang diupload.</p>
                     </div>
                 </div>
 
                 <div class="mt-8 flex justify-end">
                     <button id="toStep2Btn" disabled
-                            class="px-8 py-3 rounded-2xl bg-gradient-to-r from-cyan to-electric text-midnight font-extrabold shadow-lg hover:shadow-cyan/50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                            class="rounded-2xl bg-gradient-to-r from-cyan to-electric px-8 py-3 font-extrabold text-white shadow-lg transition hover:shadow-cyan/50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-midnight">
                         Lanjut ke Deteksi Wajah <i class="fas fa-arrow-right ml-2"></i>
                     </button>
                 </div>
             </div>
         </div>
 
-        {{-- ==================== TAHAP 2 — DETEKSI WAJAH (REWRITE) ==================== --}}
+        {{-- ==================== TAHAP 2 — DETEKSI WAJAH ==================== --}}
         <div id="panel-step2" class="step-panel hidden">
-            <div class="max-w-6xl mx-auto">
-                <div class="text-center mb-8">
-                    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet/10 border border-violet/30 text-violet-200 text-xs font-bold mb-4">
+            <div class="mx-auto max-w-6xl">
+                <div class="mb-8 text-center">
+                    <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-violet/30 bg-violet/10 px-4 py-1.5 text-xs font-bold text-violet-600 dark:text-violet-200">
                         <i class="fas fa-2"></i> Tahap 2 dari 4
                     </div>
-                    <h2 class="text-3xl md:text-4xl font-extrabold">
+                    <h2 class="text-3xl font-extrabold md:text-4xl">
                         Deteksi <span class="text-transparent bg-clip-text bg-gradient-to-r from-violet to-cyan">Wajah & Identitas</span>
                     </h2>
-                    <p class="text-gray-400 mt-3 text-sm md:text-base">
+                    <p class="mt-3 text-sm text-slate-500 dark:text-gray-400 md:text-base">
                         Arahkan wajah ke kamera. Sistem akan memverifikasi identitas Anda secara otomatis sebelum lanjut.
                     </p>
                 </div>
 
                 {{-- MODEL LOADING BAR --}}
-                <div id="modelLoadingBar" class="hidden mb-4 bg-black/40 border border-violet/30 rounded-2xl p-4">
-                    <div class="flex items-center justify-between mb-2 text-xs">
-                        <span class="font-bold text-violet-200"><i class="fas fa-brain mr-1"></i> Memuat model AI...</span>
-                        <span id="modelLoadingPct" class="text-cyan-300 font-bold">0%</span>
+                <div id="modelLoadingBar" class="mb-4 hidden rounded-2xl border border-violet/30 bg-white p-4 dark:bg-black/40">
+                    <div class="mb-2 flex items-center justify-between text-xs">
+                        <span class="font-bold text-violet-600 dark:text-violet-200"><i class="fas fa-brain mr-1"></i> Memuat model AI...</span>
+                        <span id="modelLoadingPct" class="font-bold text-cyan-600 dark:text-cyan-300">0%</span>
                     </div>
-                    <div class="w-full h-2 bg-white/10 rounded-full overflow-hidden">
-                        <div id="modelLoadingFill" class="h-full bg-gradient-to-r from-violet to-cyan w-0 transition-all duration-300"></div>
+                    <div class="h-2 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                        <div id="modelLoadingFill" class="h-full w-0 bg-gradient-to-r from-violet to-cyan transition-all duration-300"></div>
                     </div>
-                    <p id="modelLoadingMsg" class="text-[11px] text-gray-400 mt-2">Menyiapkan detektor wajah...</p>
+                    <p id="modelLoadingMsg" class="mt-2 text-[11px] text-slate-500 dark:text-gray-400">Menyiapkan detektor wajah...</p>
                 </div>
 
-                <div class="grid md:grid-cols-3 gap-6">
+                <div class="grid gap-6 md:grid-cols-3">
                     {{-- Camera --}}
                     <div class="md:col-span-2">
-                        <div class="relative rounded-3xl overflow-hidden border border-white/10 bg-black aspect-video">
-                            <video id="faceVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
-                            <canvas id="faceOverlay" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                        <div class="relative aspect-video overflow-hidden rounded-3xl border border-slate-200 bg-black dark:border-white/10">
+                            <video id="faceVideo" autoplay playsinline muted class="h-full w-full object-cover"></video>
+                            <canvas id="faceOverlay" class="pointer-events-none absolute inset-0 h-full w-full"></canvas>
 
                             {{-- Bracket corners --}}
-                            <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
-                                <div class="relative w-56 h-56 md:w-72 md:h-72">
-                                    <span class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-cyan/70 rounded-tl-2xl"></span>
-                                    <span class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-cyan/70 rounded-tr-2xl"></span>
-                                    <span class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-cyan/70 rounded-bl-2xl"></span>
-                                    <span class="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-cyan/70 rounded-br-2xl"></span>
+                            <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                <div class="relative h-56 w-56 md:h-72 md:w-72">
+                                    <span class="absolute left-0 top-0 h-8 w-8 rounded-tl-2xl border-l-4 border-t-4 border-cyan/70"></span>
+                                    <span class="absolute right-0 top-0 h-8 w-8 rounded-tr-2xl border-r-4 border-t-4 border-cyan/70"></span>
+                                    <span class="absolute bottom-0 left-0 h-8 w-8 rounded-bl-2xl border-b-4 border-l-4 border-cyan/70"></span>
+                                    <span class="absolute bottom-0 right-0 h-8 w-8 rounded-br-2xl border-b-4 border-r-4 border-cyan/70"></span>
                                 </div>
                             </div>
 
                             {{-- Placeholder --}}
                             <div id="faceCameraPlaceholder"
-                                 class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-center p-4">
-                                <i class="fas fa-video-slash text-5xl text-gray-500 mb-3"></i>
-                                <p id="facePlaceholderMsg" class="text-sm text-gray-400 mb-4">Kamera belum aktif</p>
+                                 class="absolute inset-0 flex flex-col items-center justify-center bg-black/80 p-4 text-center">
+                                <i class="fas fa-video-slash mb-3 text-5xl text-gray-500"></i>
+                                <p id="facePlaceholderMsg" class="mb-4 text-sm text-gray-400">Kamera belum aktif</p>
                                 <button id="startFaceCamBtn"
-                                        class="px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan to-electric text-midnight font-extrabold shadow-lg">
+                                        class="rounded-2xl bg-gradient-to-r from-cyan to-electric px-6 py-3 font-extrabold text-white shadow-lg">
                                     <i class="fas fa-camera mr-2"></i> Aktifkan Kamera
                                 </button>
                             </div>
 
                             {{-- Status badge --}}
                             <div id="faceStatusBadge"
-                                 class="hidden absolute top-4 left-4 px-3 py-1.5 rounded-full bg-amber-500/90 text-white text-xs font-bold">
-                                <i class="fas fa-circle text-[8px] mr-1 animate-pulse"></i> <span id="faceStatusBadgeTxt">Menunggu...</span>
+                                 class="absolute left-4 top-4 hidden rounded-full bg-amber-500/90 px-3 py-1.5 text-xs font-bold text-white">
+                                <i class="fas fa-circle mr-1 text-[8px] animate-pulse"></i> <span id="faceStatusBadgeTxt">Menunggu...</span>
                             </div>
 
                             {{-- Face count --}}
                             <div id="faceCountBadge"
-                                 class="hidden absolute top-4 right-4 px-3 py-1.5 rounded-full bg-black/70 text-white text-xs font-bold border border-white/20">
+                                 class="absolute right-4 top-4 hidden rounded-full border border-white/20 bg-black/70 px-3 py-1.5 text-xs font-bold text-white">
                                 <i class="fas fa-user mr-1"></i> <span id="faceCountTxt">0</span> wajah
                             </div>
 
                             {{-- Countdown verification --}}
-                            <div id="verifyCountdown" class="hidden absolute inset-0 flex items-center justify-center pointer-events-none">
+                            <div id="verifyCountdown" class="pointer-events-none absolute inset-0 hidden flex items-center justify-center">
                                 <div class="text-center">
                                     <div class="text-8xl font-extrabold text-cyan drop-shadow-[0_0_20px_rgba(0,217,255,0.9)]" id="verifyCountdownNum">3</div>
-                                    <p class="text-white font-bold mt-2">Tahan posisi...</p>
+                                    <p class="mt-2 font-bold text-white">Tahan posisi...</p>
                                 </div>
                             </div>
                         </div>
 
                         {{-- Mini instruction --}}
-                        <div class="mt-4 p-4 rounded-2xl bg-gradient-to-r from-violet/10 to-cyan/10 border border-violet/20 text-xs text-gray-300">
-                            <p class="font-bold text-violet-200 mb-1"><i class="fas fa-circle-info mr-1"></i> Tips Deteksi Optimal:</p>
-                            <ul class="list-disc ml-4 space-y-1">
+                        <div class="mt-4 rounded-2xl border border-violet/20 bg-gradient-to-r from-violet/10 to-cyan/10 p-4 text-xs text-slate-700 dark:text-gray-300">
+                            <p class="mb-1 font-bold text-violet-600 dark:text-violet-200"><i class="fas fa-circle-info mr-1"></i> Tips Deteksi Optimal:</p>
+                            <ul class="ml-4 list-disc space-y-1">
                                 <li>Pastikan pencahayaan cukup, wajah menghadap kamera.</li>
                                 <li>Jarak ideal 30–60 cm dari kamera.</li>
                                 <li>Hindari terlalu banyak gerakan saat verifikasi.</li>
@@ -180,62 +180,62 @@
                         </div>
                     </div>
 
-                    {{-- Identity / Verification Panel --}}
-                    <div class="bg-white/5 border border-white/10 rounded-3xl p-5 backdrop-blur-xl flex flex-col">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-bold flex items-center gap-2">
+                    {{-- Identity Panel --}}
+                    <div class="flex flex-col rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:backdrop-blur-xl">
+                        <div class="mb-4 flex items-center justify-between">
+                            <h3 class="flex items-center gap-2 font-bold">
                                 <i class="fas fa-id-card text-cyan"></i> Identitas
                             </h3>
                             <span id="verifyStatusPill"
-                                  class="px-2.5 py-1 rounded-full bg-gray-500/20 text-gray-300 text-[10px] font-bold">
+                                  class="rounded-full bg-gray-500/20 px-2.5 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-300">
                                 Menunggu
                             </span>
                         </div>
 
                         {{-- Snapshot --}}
-                        <div class="relative w-full aspect-square rounded-2xl overflow-hidden border border-white/10 bg-black/60 mb-3">
-                            <canvas id="faceSnapshot" class="w-full h-full object-cover" width="300" height="300"></canvas>
-                            <div id="snapshotEmpty" class="absolute inset-0 flex items-center justify-center text-center p-3">
+                        <div class="relative mb-3 aspect-square w-full overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 dark:border-white/10 dark:bg-black/60">
+                            <canvas id="faceSnapshot" class="h-full w-full object-cover" width="300" height="300"></canvas>
+                            <div id="snapshotEmpty" class="absolute inset-0 flex items-center justify-center p-3 text-center">
                                 <div>
-                                    <i class="fas fa-user-circle text-5xl text-gray-600 mb-2"></i>
-                                    <p class="text-[11px] text-gray-500">Snapshot wajah akan muncul setelah verifikasi</p>
+                                    <i class="fas fa-user-circle mb-2 text-5xl text-gray-400 dark:text-gray-600"></i>
+                                    <p class="text-[11px] text-slate-500 dark:text-gray-500">Snapshot wajah akan muncul setelah verifikasi</p>
                                 </div>
                             </div>
                         </div>
 
-                        {{-- Live / Verified data --}}
-                        <div class="space-y-2 flex-1">
-                            <div class="bg-black/30 rounded-2xl p-3 border border-white/10">
-                                <p class="text-[11px] text-gray-400">Nama</p>
+                        {{-- Data --}}
+                        <div class="flex-1 space-y-2">
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-black/30">
+                                <p class="text-[11px] text-slate-500 dark:text-gray-400">Nama</p>
                                 <input id="faceNameOut" type="text"
-                                       class="w-full bg-transparent font-bold text-cyan-300 text-sm outline-none border-b border-transparent focus:border-cyan/50 transition"
+                                       class="w-full border-b border-transparent bg-transparent text-sm font-bold text-cyan-600 outline-none transition focus:border-cyan/50 dark:text-cyan-300"
                                        value="Menunggu...">
                             </div>
-                            <div class="bg-black/30 rounded-2xl p-3 border border-white/10">
-                                <p class="text-[11px] text-gray-400">Usia</p>
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-black/30">
+                                <p class="text-[11px] text-slate-500 dark:text-gray-400">Usia</p>
                                 <div class="flex items-center gap-2">
                                     <input id="faceAgeOut" type="number" min="5" max="100"
-                                           class="w-16 bg-transparent font-bold text-violet-300 text-sm outline-none border-b border-transparent focus:border-violet/50 transition"
+                                           class="w-16 border-b border-transparent bg-transparent text-sm font-bold text-violet-600 outline-none transition focus:border-violet/50 dark:text-violet-300"
                                            value="">
-                                    <span class="text-violet-300 font-bold text-sm">Tahun</span>
-                                    <span id="ageConfidence" class="text-[10px] text-gray-500 ml-auto"></span>
+                                    <span class="text-sm font-bold text-violet-600 dark:text-violet-300">Tahun</span>
+                                    <span id="ageConfidence" class="ml-auto text-[10px] text-slate-400 dark:text-gray-500"></span>
                                 </div>
                             </div>
-                            <div class="bg-black/30 rounded-2xl p-3 border border-white/10">
-                                <p class="text-[11px] text-gray-400">Emosi</p>
-                                <p id="faceEmotionOut" class="font-bold text-emerald-300 text-sm">-</p>
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-black/30">
+                                <p class="text-[11px] text-slate-500 dark:text-gray-400">Emosi</p>
+                                <p id="faceEmotionOut" class="text-sm font-bold text-emerald-600 dark:text-emerald-300">-</p>
                             </div>
-                            <div class="bg-black/30 rounded-2xl p-3 border border-white/10">
-                                <p class="text-[11px] text-gray-400">Jenis Kelamin</p>
-                                <p id="faceGenderOut" class="font-bold text-pink-300 text-sm">-</p>
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-black/30">
+                                <p class="text-[11px] text-slate-500 dark:text-gray-400">Jenis Kelamin</p>
+                                <p id="faceGenderOut" class="text-sm font-bold text-pink-600 dark:text-pink-300">-</p>
                             </div>
-                            <div class="bg-black/30 rounded-2xl p-3 border border-white/10">
-                                <p class="text-[11px] text-gray-400">Kualitas Wajah</p>
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-black/30">
+                                <p class="text-[11px] text-slate-500 dark:text-gray-400">Kualitas Wajah</p>
                                 <div class="flex items-center gap-2">
-                                    <div class="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
-                                        <div id="faceQualityFill" class="h-full bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400 w-0 transition-all"></div>
+                                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-white/10">
+                                        <div id="faceQualityFill" class="h-full w-0 bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400 transition-all"></div>
                                     </div>
-                                    <span id="faceQualityPct" class="text-[11px] font-bold text-cyan-300">0%</span>
+                                    <span id="faceQualityPct" class="text-[11px] font-bold text-cyan-600 dark:text-cyan-300">0%</span>
                                 </div>
                             </div>
                         </div>
@@ -243,21 +243,21 @@
                         {{-- Actions --}}
                         <div class="mt-4 space-y-2">
                             <button id="verifyFaceBtn" disabled
-                                    class="w-full py-2.5 rounded-xl bg-gradient-to-r from-violet to-cyan text-midnight font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed transition">
+                                    class="w-full rounded-xl bg-gradient-to-r from-violet to-cyan py-2.5 text-sm font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-40 dark:text-midnight">
                                 <i class="fas fa-shield-halved mr-2"></i> <span id="verifyFaceBtnTxt">Ambil & Verifikasi</span>
                             </button>
                             <button id="retakeFaceBtn" disabled
-                                    class="w-full py-2 rounded-xl bg-white/10 hover:bg-white/20 font-bold text-xs disabled:opacity-40 transition">
+                                    class="w-full rounded-xl bg-slate-100 py-2 text-xs font-bold transition hover:bg-slate-200 disabled:opacity-40 dark:bg-white/10 dark:hover:bg-white/20">
                                 <i class="fas fa-rotate-left mr-1"></i> Ulangi Deteksi
                             </button>
                         </div>
 
                         <div id="faceReadyAlert"
-                             class="hidden mt-3 p-3 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-200 text-xs">
+                             class="mt-3 hidden rounded-2xl border border-emerald-500/40 bg-emerald-500/20 p-3 text-xs text-emerald-700 dark:text-emerald-200">
                             <i class="fas fa-check-circle mr-1"></i> Identitas terverifikasi. Silakan lanjut.
                         </div>
                         <div id="faceErrorAlert"
-                             class="hidden mt-3 p-3 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-200 text-xs">
+                             class="mt-3 hidden rounded-2xl border border-rose-500/40 bg-rose-500/20 p-3 text-xs text-rose-700 dark:text-rose-200">
                             <i class="fas fa-triangle-exclamation mr-1"></i> <span id="faceErrorTxt">Wajah tidak terdeteksi.</span>
                         </div>
                     </div>
@@ -265,11 +265,11 @@
 
                 <div class="mt-8 flex justify-between">
                     <button onclick="Wizard.goTo(1)"
-                            class="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 font-bold transition">
+                            class="rounded-2xl bg-slate-100 px-6 py-3 font-bold transition hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20">
                         <i class="fas fa-arrow-left mr-2"></i> Kembali
                     </button>
                     <button id="toStep3Btn" disabled
-                            class="px-8 py-3 rounded-2xl bg-gradient-to-r from-cyan to-electric text-midnight font-extrabold shadow-lg hover:shadow-cyan/50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                            class="rounded-2xl bg-gradient-to-r from-cyan to-electric px-8 py-3 font-extrabold text-white shadow-lg transition hover:shadow-cyan/50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-midnight">
                         Lanjut ke Rekam Gestur <i class="fas fa-arrow-right ml-2"></i>
                     </button>
                 </div>
@@ -278,38 +278,38 @@
 
         {{-- ==================== TAHAP 3 — REKAM GESTUR ==================== --}}
         <div id="panel-step3" class="step-panel hidden">
-            <div class="max-w-6xl mx-auto">
-                <div class="text-center mb-8">
-                    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald/10 border border-emerald/30 text-emerald-200 text-xs font-bold mb-4">
+            <div class="mx-auto max-w-6xl">
+                <div class="mb-8 text-center">
+                    <div class="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-200">
                         <i class="fas fa-3"></i> Tahap 3 dari 4
                     </div>
-                    <h2 class="text-3xl md:text-4xl font-extrabold">
+                    <h2 class="text-3xl font-extrabold md:text-4xl">
                         Rekam <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald to-cyan">Gestur Anda</span>
                     </h2>
-                    <p class="text-gray-400 mt-3 text-sm md:text-base">
+                    <p class="mt-3 text-sm text-slate-500 dark:text-gray-400 md:text-base">
                         Lakukan gestur di depan kamera selama <strong>2 detik</strong>. Maksimal <strong>4 gestur</strong>.
                     </p>
                 </div>
 
-                <div class="grid lg:grid-cols-2 gap-6">
+                <div class="grid gap-6 lg:grid-cols-2">
                     <div>
-                        <div class="relative rounded-3xl overflow-hidden border border-white/10 bg-black aspect-video">
-                            <video id="gestureVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
-                            <canvas id="gestureOverlay" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                        <div class="relative aspect-video overflow-hidden rounded-3xl border border-slate-200 bg-black dark:border-white/10">
+                            <video id="gestureVideo" autoplay playsinline muted class="h-full w-full object-cover"></video>
+                            <canvas id="gestureOverlay" class="pointer-events-none absolute inset-0 h-full w-full"></canvas>
 
                             <div id="gestureHintBox"
-                                 class="absolute bottom-4 left-4 right-4 p-3 rounded-2xl bg-black/70 backdrop-blur border border-white/10 text-center text-xs">
+                                 class="absolute bottom-4 left-4 right-4 rounded-2xl border border-white/10 bg-black/70 p-3 text-center text-xs backdrop-blur">
                                 <p class="text-gray-300">Lakukan gestur (Open Palm, Fist, Victory, Pinch...)</p>
-                                <p class="text-emerald-300 font-bold mt-1" id="gestureLiveLabel">Menunggu gestur...</p>
-                                <div class="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mt-2">
-                                    <div id="gestureHoldBar" class="h-full bg-gradient-to-r from-cyan to-emerald w-0 transition-all"></div>
+                                <p class="mt-1 font-bold text-emerald-300" id="gestureLiveLabel">Menunggu gestur...</p>
+                                <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                                    <div id="gestureHoldBar" class="h-full w-0 bg-gradient-to-r from-cyan to-emerald transition-all"></div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="mt-4 p-4 rounded-2xl bg-gradient-to-r from-cyan/10 to-violet/10 border border-cyan/20 text-xs text-gray-300">
-                            <p class="font-bold text-cyan-200 mb-1"><i class="fas fa-circle-info mr-1"></i> Cara Pakai:</p>
-                            <ol class="list-decimal ml-4 space-y-1">
+                        <div class="mt-4 rounded-2xl border border-cyan/20 bg-gradient-to-r from-cyan/10 to-violet/10 p-4 text-xs text-slate-700 dark:text-gray-300">
+                            <p class="mb-1 font-bold text-cyan-600 dark:text-cyan-200"><i class="fas fa-circle-info mr-1"></i> Cara Pakai:</p>
+                            <ol class="ml-4 list-decimal space-y-1">
                                 <li>Lakukan gestur di depan kamera.</li>
                                 <li>Tahan 2 detik sampai progress bar penuh.</li>
                                 <li>Isi nama gestur & pilih fungsinya.</li>
@@ -319,35 +319,35 @@
                     </div>
 
                     <div>
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="font-bold flex items-center gap-2">
+                        <div class="mb-4 flex items-center justify-between">
+                            <h3 class="flex items-center gap-2 font-bold">
                                 <i class="fas fa-list-check text-cyan"></i> Gestur Tersimpan
                             </h3>
-                            <span class="text-xs px-3 py-1 rounded-full bg-cyan/20 text-cyan-200 font-bold">
+                            <span class="rounded-full bg-cyan/20 px-3 py-1 text-xs font-bold text-cyan-600 dark:text-cyan-200">
                                 <span id="gestureCount">0</span> / 4
                             </span>
                         </div>
 
                         <div id="gestureList" class="space-y-3">
-                            <p class="text-xs text-gray-500 italic">Belum ada gestur tersimpan.</p>
+                            <p class="text-xs italic text-slate-400 dark:text-gray-500">Belum ada gestur tersimpan.</p>
                         </div>
 
-                        <div id="gestureForm" class="hidden mt-4 p-4 rounded-2xl bg-gradient-to-br from-cyan/10 to-violet/10 border border-cyan/30">
-                            <p class="text-xs text-cyan-200 font-bold mb-3">
+                        <div id="gestureForm" class="mt-4 hidden rounded-2xl border border-cyan/30 bg-gradient-to-br from-cyan/10 to-violet/10 p-4">
+                            <p class="mb-3 text-xs font-bold text-cyan-600 dark:text-cyan-200">
                                 <i class="fas fa-check-circle mr-1"></i> Gestur terdeteksi! Simpan sekarang.
                             </p>
 
-                            <label class="text-xs text-gray-300">Nama Gestur</label>
+                            <label class="text-xs text-slate-700 dark:text-gray-300">Nama Gestur</label>
                             <input type="text" id="gestureNameInput" placeholder="Contoh: Tangan Kanan"
-                                   class="w-full mt-1 mb-3 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white">
+                                   class="mb-3 mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white">
 
-                            <label class="text-xs text-gray-300">Kategori Terdeteksi</label>
+                            <label class="text-xs text-slate-700 dark:text-gray-300">Kategori Terdeteksi</label>
                             <input type="text" id="gestureCategoryInput" readonly
-                                   class="w-full mt-1 mb-3 bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-sm text-cyan-300">
+                                   class="mb-3 mt-1 w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-cyan-600 dark:border-white/10 dark:bg-black/60 dark:text-cyan-300">
 
-                            <label class="text-xs text-gray-300">Fungsi Gestur</label>
+                            <label class="text-xs text-slate-700 dark:text-gray-300">Fungsi Gestur</label>
                             <select id="gestureFunctionInput"
-                                    class="w-full mt-1 mb-3 bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-sm text-white">
+                                    class="mb-3 mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 dark:border-white/10 dark:bg-black/40 dark:text-white">
                                 <option value="next">➡️ Slide Selanjutnya</option>
                                 <option value="prev">⬅️ Slide Sebelumnya</option>
                                 <option value="close">❌ Close Presentasi</option>
@@ -358,11 +358,11 @@
 
                             <div class="flex gap-2">
                                 <button id="saveGestureBtn"
-                                        class="flex-1 py-2 rounded-xl bg-gradient-to-r from-cyan to-electric text-midnight font-bold text-sm">
+                                        class="flex-1 rounded-xl bg-gradient-to-r from-cyan to-electric py-2 text-sm font-bold text-white dark:text-midnight">
                                     <i class="fas fa-save mr-1"></i> Simpan
                                 </button>
                                 <button id="cancelGestureBtn"
-                                        class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-sm">
+                                        class="rounded-xl bg-slate-100 px-4 py-2 text-sm hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20">
                                     Batal
                                 </button>
                             </div>
@@ -372,195 +372,188 @@
 
                 <div class="mt-8 flex justify-between">
                     <button onclick="Wizard.goTo(2)"
-                            class="px-6 py-3 rounded-2xl bg-white/10 hover:bg-white/20 font-bold transition">
+                            class="rounded-2xl bg-slate-100 px-6 py-3 font-bold transition hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20">
                         <i class="fas fa-arrow-left mr-2"></i> Kembali
                     </button>
                     <button id="generateBtn" disabled
-                            class="px-8 py-3 rounded-2xl bg-gradient-to-r from-emerald to-cyan text-midnight font-extrabold shadow-lg hover:shadow-emerald/50 transition disabled:opacity-40 disabled:cursor-not-allowed">
+                            class="rounded-2xl bg-gradient-to-r from-emerald to-cyan px-8 py-3 font-extrabold text-white shadow-lg transition hover:shadow-emerald/50 disabled:cursor-not-allowed disabled:opacity-40 dark:text-midnight">
                         <i class="fas fa-bolt mr-2"></i> Generate Presentasi
                     </button>
                 </div>
             </div>
         </div>
 
-       {{-- ==================== FINAL — 2 CARD LAYOUT ==================== --}}
-<div id="panel-final" class="step-panel hidden">
-    <div class="w-full">
+        {{-- ==================== FINAL — 2 CARD LAYOUT ==================== --}}
+        <div id="panel-final" class="step-panel hidden">
+            <div class="w-full">
 
-        {{-- Header --}}
-        <div class="mb-6 flex items-center justify-between flex-wrap gap-4">
-            <div>
-                <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald/10 border border-emerald/30 text-emerald-200 text-xs font-bold mb-2">
-                    <i class="fas fa-check-circle"></i> Presentasi Siap
-                </div>
-                <h2 class="text-3xl md:text-4xl font-extrabold">
-                    Lembar <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald to-cyan">Presentasi Anda</span>
-                </h2>
-            </div>
-            <button onclick="Wizard.goTo(3)"
-                    class="px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 text-sm font-bold transition">
-                <i class="fas fa-arrow-left mr-2"></i> Kembali Atur Gestur
-            </button>
-        </div>
-
-        {{-- Order Bar --}}
-        <div class="bg-white/5 border border-white/10 rounded-3xl p-5 backdrop-blur-xl mb-6">
-            <div class="flex items-center justify-between flex-wrap gap-4">
-                <div>
-                    <p class="font-bold text-sm mb-1"><i class="fas fa-sort text-cyan mr-1"></i> Urutan Tampil File</p>
-                    <p class="text-xs text-gray-400">Pilih urutan file yang akan ditampilkan lebih dulu.</p>
-                </div>
-                <div class="flex items-center gap-2 flex-wrap" id="orderBtnWrap">
-                    <button data-order="123" class="orderPresetBtn px-3 py-2 rounded-xl bg-white/10 hover:bg-cyan hover:text-midnight text-xs font-bold transition">1 - 2 - 3</button>
-                    <button data-order="321" class="orderPresetBtn px-3 py-2 rounded-xl bg-white/10 hover:bg-cyan hover:text-midnight text-xs font-bold transition">3 - 2 - 1</button>
-                    <button data-order="213" class="orderPresetBtn px-3 py-2 rounded-xl bg-white/10 hover:bg-cyan hover:text-midnight text-xs font-bold transition">2 - 1 - 3</button>
-                    <button data-order="231" class="orderPresetBtn px-3 py-2 rounded-xl bg-white/10 hover:bg-cyan hover:text-midnight text-xs font-bold transition">2 - 3 - 1</button>
-                    <button data-order="312" class="orderPresetBtn px-3 py-2 rounded-xl bg-white/10 hover:bg-cyan hover:text-midnight text-xs font-bold transition">3 - 1 - 2</button>
-                    <button data-order="132" class="orderPresetBtn px-3 py-2 rounded-xl bg-white/10 hover:bg-cyan hover:text-midnight text-xs font-bold transition">1 - 3 - 2</button>
-                </div>
-            </div>
-        </div>
-
-        {{-- TWO-CARD GRID --}}
-        <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-
-            {{-- KIRI: FILE PREVIEW CARD --}}
-            <div class="xl:col-span-2 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-xl overflow-hidden">
-                <div class="p-4 md:p-5 border-b border-white/10 flex items-center justify-between flex-wrap gap-3">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan to-electric flex items-center justify-center text-midnight font-extrabold shrink-0" id="filePosBadge">
-                            #1
+                {{-- Header --}}
+                <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+                    <div>
+                        <div class="mb-2 inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-4 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-200">
+                            <i class="fas fa-check-circle"></i> Presentasi Siap
                         </div>
-                        <div class="min-w-0">
-                            <p class="font-bold truncate" id="fileTitleTxt">-</p>
-                            <p class="text-xs text-gray-400" id="fileMetaTxt">-</p>
-                        </div>
+                        <h2 class="text-3xl font-extrabold md:text-4xl">
+                            Lembar <span class="text-transparent bg-clip-text bg-gradient-to-r from-emerald to-cyan">Presentasi Anda</span>
+                        </h2>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button id="prevFileBtn" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs">
-                            <i class="fas fa-chevron-left"></i> Sebelumnya
-                        </button>
-                        <button id="nextFileBtn" class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs">
-                            Berikutnya <i class="fas fa-chevron-right"></i>
-                        </button>
-                        <button id="openFsBtn" class="px-3 py-2 rounded-xl bg-gradient-to-r from-cyan to-electric text-midnight text-xs font-bold">
-                            <i class="fas fa-expand"></i> Fullscreen
-                        </button>
-                    </div>
+                    <button onclick="Wizard.goTo(3)"
+                            class="rounded-2xl bg-slate-100 px-5 py-2.5 text-sm font-bold transition hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20">
+                        <i class="fas fa-arrow-left mr-2"></i> Kembali Atur Gestur
+                    </button>
                 </div>
 
-                <div id="filePreviewWrap" class="relative bg-black/60 min-h-[560px] flex items-center justify-center">
-                    {{-- Preview content rendered by JS --}}
-                    <div class="text-center text-gray-500 italic p-8">
-                        <i class="fas fa-file-lines text-6xl text-cyan/30 mb-3"></i>
-                        <p>Preview akan muncul di sini</p>
-                    </div>
-                </div>
-
-                {{-- Navigasi bawah --}}
-                <div class="p-4 border-t border-white/10 flex items-center justify-between text-xs text-gray-400">
-                    <span>File <strong id="filePosLabel" class="text-cyan-300">1</strong> dari <strong id="fileTotalLabel" class="text-cyan-300">0</strong></span>
-                    <span id="fileZoomLabel">Zoom: 100%</span>
-                </div>
-            </div>
-
-            {{-- KANAN: CAMERA CARD (Identitas + Gestur) --}}
-            <div class="bg-white/5 border border-white/10 rounded-3xl backdrop-blur-xl overflow-hidden flex flex-col">
-                <div class="p-4 border-b border-white/10 flex items-center justify-between">
-                    <div class="flex items-center gap-2">
-                        <div class="w-9 h-9 rounded-2xl bg-gradient-to-br from-emerald to-cyan flex items-center justify-center">
-                            <i class="fas fa-camera text-midnight text-sm"></i>
-                        </div>
+                {{-- Order Bar --}}
+                <div class="mb-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:backdrop-blur-xl">
+                    <div class="flex flex-wrap items-center justify-between gap-4">
                         <div>
-                            <p class="font-bold text-sm">Kamera & Kontrol</p>
-                            <p class="text-[10px] text-gray-400">Identitas + Gestur</p>
+                            <p class="mb-1 text-sm font-bold"><i class="fas fa-sort mr-1 text-cyan"></i> Urutan Tampil File</p>
+                            <p class="text-xs text-slate-500 dark:text-gray-400">Pilih urutan file yang akan ditampilkan lebih dulu.</p>
                         </div>
-                    </div>
-                    <span id="camStatusPill" class="px-2.5 py-1 rounded-full bg-gray-500/20 text-gray-300 text-[10px] font-bold">
-                        Offline
-                    </span>
-                </div>
-
-                {{-- Camera feed --}}
-                <div class="relative bg-black aspect-video">
-                    <video id="finalVideo" autoplay playsinline muted class="w-full h-full object-cover"></video>
-                    <canvas id="finalOverlay" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
-
-                    {{-- Corner brackets --}}
-                    <div class="absolute inset-0 pointer-events-none flex items-center justify-center">
-                        <div class="relative w-32 h-32">
-                            <span class="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-cyan/70"></span>
-                            <span class="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-cyan/70"></span>
-                            <span class="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-cyan/70"></span>
-                            <span class="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-cyan/70"></span>
-                        </div>
-                    </div>
-
-                    {{-- Gesture live label --}}
-                    <div id="finalGestureHint"
-                         class="absolute bottom-2 left-2 right-2 px-3 py-2 rounded-xl bg-black/70 backdrop-blur border border-white/10 text-[10px]">
-                        <div class="flex items-center justify-between">
-                            <span class="text-gray-300">Gestur:</span>
-                            <span id="finalGestureLabel" class="text-cyan-300 font-bold">-</span>
-                        </div>
-                        <div class="w-full h-1 bg-white/10 rounded-full overflow-hidden mt-1">
-                            <div id="finalGestureBar" class="h-full bg-gradient-to-r from-cyan to-emerald w-0 transition-all"></div>
+                        <div class="flex flex-wrap items-center gap-2" id="orderBtnWrap">
+                            <button data-order="123" class="orderPresetBtn rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold transition hover:bg-cyan hover:text-white dark:bg-white/10 dark:text-white dark:hover:text-midnight">1 - 2 - 3</button>
+                            <button data-order="321" class="orderPresetBtn rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold transition hover:bg-cyan hover:text-white dark:bg-white/10 dark:text-white dark:hover:text-midnight">3 - 2 - 1</button>
+                            <button data-order="213" class="orderPresetBtn rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold transition hover:bg-cyan hover:text-white dark:bg-white/10 dark:text-white dark:hover:text-midnight">2 - 1 - 3</button>
+                            <button data-order="231" class="orderPresetBtn rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold transition hover:bg-cyan hover:text-white dark:bg-white/10 dark:text-white dark:hover:text-midnight">2 - 3 - 1</button>
+                            <button data-order="312" class="orderPresetBtn rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold transition hover:bg-cyan hover:text-white dark:bg-white/10 dark:text-white dark:hover:text-midnight">3 - 1 - 2</button>
+                            <button data-order="132" class="orderPresetBtn rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold transition hover:bg-cyan hover:text-white dark:bg-white/10 dark:text-white dark:hover:text-midnight">1 - 3 - 2</button>
                         </div>
                     </div>
                 </div>
 
-                {{-- Identity info --}}
-                <div class="p-4 space-y-2 flex-1">
-                    <div class="bg-black/30 rounded-2xl p-3 border border-white/10">
-                        <p class="text-[10px] text-gray-400">Nama</p>
-                        <p id="finalNameTxt" class="font-bold text-cyan-300 text-sm truncate">-</p>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div class="bg-black/30 rounded-2xl p-3 border border-white/10">
-                            <p class="text-[10px] text-gray-400">Usia</p>
-                            <p id="finalAgeTxt" class="font-bold text-violet-300 text-sm">-</p>
+                {{-- TWO-CARD GRID --}}
+                <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
+
+                    {{-- KIRI: FILE PREVIEW --}}
+                    <div class="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:backdrop-blur-xl xl:col-span-2">
+                        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 p-4 dark:border-white/10 md:p-5">
+                            <div class="flex min-w-0 items-center gap-3">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan to-electric font-extrabold text-white dark:text-midnight" id="filePosBadge">
+                                    #1
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="truncate font-bold" id="fileTitleTxt">-</p>
+                                    <p class="text-xs text-slate-500 dark:text-gray-400" id="fileMetaTxt">-</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <button id="prevFileBtn" class="rounded-xl bg-slate-100 px-3 py-2 text-xs transition hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20">
+                                    <i class="fas fa-chevron-left"></i> Sebelumnya
+                                </button>
+                                <button id="nextFileBtn" class="rounded-xl bg-slate-100 px-3 py-2 text-xs transition hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20">
+                                    Berikutnya <i class="fas fa-chevron-right"></i>
+                                </button>
+                                <button id="openFsBtn" class="rounded-xl bg-gradient-to-r from-cyan to-electric px-3 py-2 text-xs font-bold text-white dark:text-midnight">
+                                    <i class="fas fa-expand"></i> Fullscreen
+                                </button>
+                            </div>
                         </div>
-                        <div class="bg-black/30 rounded-2xl p-3 border border-white/10">
-                            <p class="text-[10px] text-gray-400">Emosi</p>
-                            <p id="finalEmotionTxt" class="font-bold text-emerald-300 text-xs truncate">-</p>
+
+                        <div id="filePreviewWrap" class="relative flex min-h-[560px] items-center justify-center bg-slate-100 dark:bg-black/60">
+                            <div class="p-8 text-center italic text-slate-400 dark:text-gray-500">
+                                <i class="fas fa-file-lines mb-3 text-6xl text-cyan/30"></i>
+                                <p>Preview akan muncul di sini</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between border-t border-slate-200 p-4 text-xs text-slate-500 dark:border-white/10 dark:text-gray-400">
+                            <span>File <strong id="filePosLabel" class="text-cyan-600 dark:text-cyan-300">1</strong> dari <strong id="fileTotalLabel" class="text-cyan-600 dark:text-cyan-300">0</strong></span>
+                            <span id="fileZoomLabel">Zoom: 100%</span>
                         </div>
                     </div>
+
+                    {{-- KANAN: CAMERA CARD --}}
+                    <div class="flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:backdrop-blur-xl">
+                        <div class="flex items-center justify-between border-b border-slate-200 p-4 dark:border-white/10">
+                            <div class="flex items-center gap-2">
+                                <div class="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald to-cyan">
+                                    <i class="fas fa-camera text-sm text-white dark:text-midnight"></i>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-bold">Kamera & Kontrol</p>
+                                    <p class="text-[10px] text-slate-500 dark:text-gray-400">Identitas + Gestur</p>
+                                </div>
+                            </div>
+                            <span id="camStatusPill" class="rounded-full bg-gray-500/20 px-2.5 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-300">
+                                Offline
+                            </span>
+                        </div>
+
+                        <div class="relative aspect-video bg-black">
+                            <video id="finalVideo" autoplay playsinline muted class="h-full w-full object-cover"></video>
+                            <canvas id="finalOverlay" class="pointer-events-none absolute inset-0 h-full w-full"></canvas>
+
+                            <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+                                <div class="relative h-32 w-32">
+                                    <span class="absolute left-0 top-0 h-5 w-5 border-l-2 border-t-2 border-cyan/70"></span>
+                                    <span class="absolute right-0 top-0 h-5 w-5 border-r-2 border-t-2 border-cyan/70"></span>
+                                    <span class="absolute bottom-0 left-0 h-5 w-5 border-b-2 border-l-2 border-cyan/70"></span>
+                                    <span class="absolute bottom-0 right-0 h-5 w-5 border-b-2 border-r-2 border-cyan/70"></span>
+                                </div>
+                            </div>
+
+                            <div id="finalGestureHint"
+                                 class="absolute bottom-2 left-2 right-2 rounded-xl border border-white/10 bg-black/70 px-3 py-2 text-[10px] backdrop-blur">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-300">Gestur:</span>
+                                    <span id="finalGestureLabel" class="font-bold text-cyan-300">-</span>
+                                </div>
+                                <div class="mt-1 h-1 w-full overflow-hidden rounded-full bg-white/10">
+                                    <div id="finalGestureBar" class="h-full w-0 bg-gradient-to-r from-cyan to-emerald transition-all"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 space-y-2 p-4">
+                            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-black/30">
+                                <p class="text-[10px] text-slate-500 dark:text-gray-400">Nama</p>
+                                <p id="finalNameTxt" class="truncate text-sm font-bold text-cyan-600 dark:text-cyan-300">-</p>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-black/30">
+                                    <p class="text-[10px] text-slate-500 dark:text-gray-400">Usia</p>
+                                    <p id="finalAgeTxt" class="text-sm font-bold text-violet-600 dark:text-violet-300">-</p>
+                                </div>
+                                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-black/30">
+                                    <p class="text-[10px] text-slate-500 dark:text-gray-400">Emosi</p>
+                                    <p id="finalEmotionTxt" class="truncate text-xs font-bold text-emerald-600 dark:text-emerald-300">-</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="border-t border-slate-200 p-4 dark:border-white/10">
+                            <p class="mb-2 text-[10px] text-slate-500 dark:text-gray-400">Gestur Aktif:</p>
+                            <div id="finalGestureChips" class="flex flex-wrap gap-1.5">
+                                <span class="text-[10px] italic text-slate-400 dark:text-gray-500">Belum ada</span>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
 
-                {{-- Gesture shortcuts --}}
-                <div class="p-4 border-t border-white/10">
-                    <p class="text-[10px] text-gray-400 mb-2">Gestur Aktif:</p>
-                    <div id="finalGestureChips" class="flex flex-wrap gap-1.5">
-                        <span class="text-[10px] text-gray-500 italic">Belum ada</span>
+                {{-- ACTION LOG --}}
+                <div class="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5 dark:shadow-none dark:backdrop-blur-xl">
+                    <div class="mb-4 flex items-center justify-between">
+                        <h3 class="font-bold"><i class="fas fa-bolt mr-2 text-yellow-500 dark:text-yellow-300"></i> Log Aksi Gestur</h3>
+                        <button id="clearLogBtn" class="rounded-lg bg-slate-100 px-3 py-1.5 text-xs transition hover:bg-slate-200 dark:bg-white/10 dark:hover:bg-white/20">Bersihkan</button>
                     </div>
+                    <div id="actionLog" class="text-xs italic text-slate-400 dark:text-gray-400">Belum ada aksi.</div>
                 </div>
+
             </div>
-
         </div>
-
-        {{-- ACTION LOG --}}
-        <div class="mt-6 bg-white/5 border border-white/10 rounded-3xl p-5 backdrop-blur-xl">
-            <div class="flex items-center justify-between mb-4">
-                <h3 class="font-bold"><i class="fas fa-bolt text-yellow-300 mr-2"></i> Log Aksi Gestur</h3>
-                <button id="clearLogBtn" class="text-xs px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition">Bersihkan</button>
-            </div>
-            <div id="actionLog" class="text-xs text-gray-400 italic">Belum ada aksi.</div>
-        </div>
-
-    </div>
-</div>
 
     </section>
 </div>
 
 {{-- FULLSCREEN OVERLAY --}}
-<div id="fullscreenOverlay" class="hidden fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl">
-    <div class="absolute top-4 right-4 z-10 flex items-center gap-2">
-        <button id="closeFullscreenBtn" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-sm font-bold">
+<div id="fullscreenOverlay" class="fixed inset-0 z-[100] hidden bg-black/95 backdrop-blur-xl">
+    <div class="absolute right-4 top-4 z-10 flex items-center gap-2">
+        <button id="closeFullscreenBtn" class="rounded-xl bg-white/10 px-4 py-2 text-sm font-bold text-white hover:bg-white/20">
             <i class="fas fa-times mr-1"></i> Tutup
         </button>
     </div>
-    <div id="fullscreenContent" class="w-full h-full flex items-center justify-center p-4"></div>
+    <div id="fullscreenContent" class="flex h-full w-full items-center justify-center p-4"></div>
 </div>
 
 <script>
@@ -590,7 +583,6 @@
         holdStart: 0,
         holdCandidate: null,
         GESTURE_HOLD_MS: 2000,
-        // FACE
         face: {
             verified: false,
             name: window.APP_USER_NAME || 'Pengguna',
@@ -681,13 +673,13 @@
             const circle = el.querySelector('span:first-child');
             el.classList.toggle('opacity-50', s > State.step);
             if (s < State.step) {
-                circle.className = 'w-7 h-7 rounded-full bg-emerald text-midnight flex items-center justify-center';
+                circle.className = 'flex h-7 w-7 items-center justify-center rounded-full bg-emerald text-white dark:text-midnight';
                 circle.innerHTML = '<i class="fas fa-check text-[10px]"></i>';
             } else if (s === State.step) {
-                circle.className = 'w-7 h-7 rounded-full bg-cyan text-midnight flex items-center justify-center';
+                circle.className = 'flex h-7 w-7 items-center justify-center rounded-full bg-cyan text-white dark:text-midnight';
                 circle.textContent = s;
             } else {
-                circle.className = 'w-7 h-7 rounded-full bg-white/20 flex items-center justify-center';
+                circle.className = 'flex h-7 w-7 items-center justify-center rounded-full bg-slate-200 text-slate-500 dark:bg-white/20 dark:text-white';
                 circle.textContent = s;
             }
         });
@@ -724,21 +716,21 @@
         $('fileCountLabel').textContent = State.files.length;
 
         if (!State.files.length) {
-            list.innerHTML = '<p class="text-xs text-gray-500 italic">Belum ada file yang diupload.</p>';
+            list.innerHTML = '<p class="text-xs italic text-slate-400 dark:text-gray-500">Belum ada file yang diupload.</p>';
             $('toStep2Btn').disabled = true;
             return;
         }
 
         list.innerHTML = State.files.map((f, i) => `
-            <div class="flex items-center gap-3 bg-black/30 rounded-2xl p-3 border border-white/10">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan to-electric flex items-center justify-center text-midnight font-bold text-xs shrink-0">
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-black/30">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan to-electric text-xs font-bold text-white dark:text-midnight">
                     ${f.ext.toUpperCase()}
                 </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold truncate">${f.name}</p>
-                    <p class="text-[11px] text-gray-400">${formatSize(f.size)} • Urutan #${i + 1}</p>
+                <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-semibold">${f.name}</p>
+                    <p class="text-[11px] text-slate-500 dark:text-gray-400">${formatSize(f.size)} • Urutan #${i + 1}</p>
                 </div>
-                <button data-i="${i}" class="rmFileBtn text-rose-400 hover:text-rose-200 transition p-2">
+                <button data-i="${i}" class="rmFileBtn p-2 text-rose-500 transition hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-200">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -772,7 +764,7 @@
     $('toStep2Btn').onclick = () => Wizard.goTo(2);
 
     /* ============================================================
-       CAMERA MANAGEMENT
+       CAMERA
     ============================================================ */
     async function getCameraStream() {
         if (State.stream && State.stream.active) return State.stream;
@@ -796,7 +788,7 @@
     }
 
     /* ============================================================
-       STEP 2 — FACE DETECTION (REWRITE, ROBUST)
+       STEP 2 — FACE DETECTION
     ============================================================ */
     const faceVideo = $('faceVideo');
     const faceOverlay = $('faceOverlay');
@@ -804,7 +796,6 @@
     let faceLoopActive = false;
     let faceRafId = null;
 
-    // Multiple CDN fallbacks
     const FACE_MODEL_URLS = [
         'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@0.22.2/weights',
         'https://justadudewhohacks.github.io/face-api.js/models',
@@ -840,15 +831,13 @@
     }
 
     async function startFaceCamera() {
-        // If verified already, just render UI
         if (State.face.verified) {
             renderFaceVerifiedUI();
             $('toStep3Btn').disabled = false;
         }
 
-        // Attach stream to video
         try {
-            const stream = await getCameraStream();
+            await getCameraStream();
             attachStream(faceVideo);
             $('faceCameraPlaceholder').classList.add('hidden');
             $('faceStatusBadge').classList.remove('hidden');
@@ -859,7 +848,6 @@
             return;
         }
 
-        // Load models
         if (!State.faceApiReady) {
             const ok = await tryLoadModels();
             if (!ok) {
@@ -870,7 +858,6 @@
             }
         }
 
-        // Start detection loop
         faceLoopActive = true;
         if (faceRafId) cancelAnimationFrame(faceRafId);
         loopFace();
@@ -907,7 +894,6 @@
                     const box = det.detection.box;
                     const score = det.detection.score;
 
-                    // Pick strongest emotion
                     let emoKey = 'neutral', emoVal = 0;
                     for (const [k, v] of Object.entries(det.expressions)) {
                         if (v > emoVal) { emoVal = v; emoKey = k; }
@@ -915,14 +901,12 @@
 
                     const age = Math.round(det.age);
                     const ageConf = det.age > 0 ? 1 : 0;
-                    const gender = det.gender; // 'male' | 'female'
+                    const gender = det.gender;
 
-                    // Quality scoring (0-100)
                     const boxSizeRatio = (box.width * box.height) / (W * H);
                     const sizeScore = Math.min(1, boxSizeRatio / 0.08);
                     const quality = Math.round(Math.min(1, sizeScore) * 100);
 
-                    // Stability counter
                     State.face.stability = Math.min(
                         State.face.STABILITY_REQUIRED,
                         State.face.stability + 1
@@ -933,15 +917,9 @@
 
                     State.face.lastData = {
                         name: State.face.name,
-                        age,
-                        ageConf,
-                        emotion: emoKey,
-                        gender,
-                        score,
-                        quality
+                        age, ageConf, emotion: emoKey, gender, score, quality
                     };
 
-                    // Live UI
                     if (!State.face.verified) {
                         $('faceAgeOut').value = age;
                         $('ageConfidence').textContent = '±' + Math.max(2, Math.round((1 - ageConf + 0.15) * 15)) + ' th';
@@ -951,25 +929,23 @@
                         $('faceQualityPct').textContent = quality + '%';
                     }
 
-                    // Draw bracket overlay
                     drawFaceBox(ctx, box, stable, qualityOK);
 
-                    // Status
                     if (!State.face.verified) {
                         if (stable && qualityOK) {
                             $('faceStatusBadgeTxt').textContent = 'Wajah terdeteksi stabil';
-                            $('faceStatusBadge').className = 'absolute top-4 left-4 px-3 py-1.5 rounded-full bg-emerald-500/90 text-white text-xs font-bold';
+                            $('faceStatusBadge').className = 'absolute left-4 top-4 rounded-full bg-emerald-500/90 px-3 py-1.5 text-xs font-bold text-white';
                             $('verifyFaceBtn').disabled = false;
                             $('verifyStatusPill').textContent = 'Siap verifikasi';
-                            $('verifyStatusPill').className = 'px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold';
+                            $('verifyStatusPill').className = 'rounded-full bg-emerald-500/20 px-2.5 py-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-300';
                             $('verifyFaceBtnTxt').textContent = 'Ambil & Verifikasi';
                         } else if (!qualityOK) {
                             $('faceStatusBadgeTxt').textContent = 'Dekatkan wajah ke kamera';
-                            $('faceStatusBadge').className = 'absolute top-4 left-4 px-3 py-1.5 rounded-full bg-amber-500/90 text-white text-xs font-bold';
+                            $('faceStatusBadge').className = 'absolute left-4 top-4 rounded-full bg-amber-500/90 px-3 py-1.5 text-xs font-bold text-white';
                             $('verifyFaceBtn').disabled = true;
                         } else {
                             $('faceStatusBadgeTxt').textContent = 'Menstabilkan...';
-                            $('faceStatusBadge').className = 'absolute top-4 left-4 px-3 py-1.5 rounded-full bg-amber-500/90 text-white text-xs font-bold';
+                            $('faceStatusBadge').className = 'absolute left-4 top-4 rounded-full bg-amber-500/90 px-3 py-1.5 text-xs font-bold text-white';
                             $('verifyFaceBtn').disabled = true;
                         }
                     }
@@ -978,20 +954,18 @@
                     State.face.stability = 0;
                     if (!State.face.verified) {
                         $('faceStatusBadgeTxt').textContent = 'Wajah tidak terdeteksi';
-                        $('faceStatusBadge').className = 'absolute top-4 left-4 px-3 py-1.5 rounded-full bg-rose-500/90 text-white text-xs font-bold';
+                        $('faceStatusBadge').className = 'absolute left-4 top-4 rounded-full bg-rose-500/90 px-3 py-1.5 text-xs font-bold text-white';
                         $('verifyFaceBtn').disabled = true;
                         $('faceQualityFill').style.width = '0%';
                         $('faceQualityPct').textContent = '0%';
                     }
                 } else {
-                    // Multiple faces
                     State.face.stability = 0;
                     if (!State.face.verified) {
                         $('faceStatusBadgeTxt').textContent = 'Hanya 1 wajah yang diizinkan';
-                        $('faceStatusBadge').className = 'absolute top-4 left-4 px-3 py-1.5 rounded-full bg-rose-500/90 text-white text-xs font-bold';
+                        $('faceStatusBadge').className = 'absolute left-4 top-4 rounded-full bg-rose-500/90 px-3 py-1.5 text-xs font-bold text-white';
                         $('verifyFaceBtn').disabled = true;
                     }
-                    // Draw boxes for all
                     detections.forEach(d => {
                         drawFaceBox(ctx, d.detection.box, false, false, 'rgba(244,63,94,0.8)');
                     });
@@ -1011,26 +985,20 @@
         ctx.strokeStyle = color;
         ctx.lineWidth = 3;
         const L = 22;
-        // 4 corner brackets
-        // TL
         ctx.beginPath(); ctx.moveTo(box.x, box.y + L); ctx.lineTo(box.x, box.y); ctx.lineTo(box.x + L, box.y); ctx.stroke();
-        // TR
         ctx.beginPath(); ctx.moveTo(box.x + box.width - L, box.y); ctx.lineTo(box.x + box.width, box.y); ctx.lineTo(box.x + box.width, box.y + L); ctx.stroke();
-        // BL
         ctx.beginPath(); ctx.moveTo(box.x, box.y + box.height - L); ctx.lineTo(box.x, box.y + box.height); ctx.lineTo(box.x + L, box.y + box.height); ctx.stroke();
-        // BR
         ctx.beginPath(); ctx.moveTo(box.x + box.width - L, box.y + box.height); ctx.lineTo(box.x + box.width, box.y + box.height); ctx.lineTo(box.x + box.width, box.y + box.height - L); ctx.stroke();
     }
 
     function updateFaceCountBadge(n) {
         $('faceCountTxt').textContent = n;
-        $('faceCountBadge').className = 'absolute top-4 right-4 px-3 py-1.5 rounded-full text-xs font-bold border ' +
-            (n === 1 ? 'bg-emerald-500/80 border-emerald-300/50 text-white' :
-             n === 0 ? 'bg-black/70 border-white/20 text-gray-300' :
-             'bg-rose-500/80 border-rose-300/50 text-white');
+        $('faceCountBadge').className = 'absolute right-4 top-4 rounded-full border px-3 py-1.5 text-xs font-bold ' +
+            (n === 1 ? 'border-emerald-300/50 bg-emerald-500/80 text-white' :
+             n === 0 ? 'border-white/20 bg-black/70 text-gray-300' :
+             'border-rose-300/50 bg-rose-500/80 text-white');
     }
 
-    /* ---------- VERIFY / RETAKE ---------- */
     $('startFaceCamBtn').onclick = () => startFaceCamera();
 
     $('verifyFaceBtn').onclick = async () => {
@@ -1041,22 +1009,21 @@
             return;
         }
 
-        // Countdown 3..2..1
         const cd = $('verifyCountdown');
         const num = $('verifyCountdownNum');
         cd.classList.remove('hidden');
+        cd.classList.add('flex');
         for (let i = 3; i >= 1; i--) {
             num.textContent = i;
             await new Promise(r => setTimeout(r, 700));
         }
         cd.classList.add('hidden');
+        cd.classList.remove('flex');
 
-        // Capture snapshot
         try {
             const W = faceVideo.videoWidth, H = faceVideo.videoHeight;
             faceSnapshot.width = W; faceSnapshot.height = H;
             const sctx = faceSnapshot.getContext('2d');
-            // mirror horizontally since video is mirrored by CSS object-fit
             sctx.save();
             sctx.translate(W, 0);
             sctx.scale(-1, 1);
@@ -1066,7 +1033,6 @@
             State.face.snapshot = faceSnapshot.toDataURL('image/jpeg', 0.8);
         } catch (e) { console.warn(e); }
 
-        // Lock data
         const nameVal = $('faceNameOut').value.trim() || window.APP_USER_NAME || 'Pengguna';
         const ageVal = parseInt($('faceAgeOut').value) || State.face.lastData.age;
         State.face.name = nameVal;
@@ -1093,7 +1059,7 @@
         const sctx = faceSnapshot.getContext('2d');
         sctx.clearRect(0, 0, faceSnapshot.width, faceSnapshot.height);
         $('verifyStatusPill').textContent = 'Menunggu';
-        $('verifyStatusPill').className = 'px-2.5 py-1 rounded-full bg-gray-500/20 text-gray-300 text-[10px] font-bold';
+        $('verifyStatusPill').className = 'rounded-full bg-gray-500/20 px-2.5 py-1 text-[10px] font-bold text-gray-500 dark:text-gray-300';
         $('verifyFaceBtnTxt').textContent = 'Ambil & Verifikasi';
         sessionStorage.removeItem('ppt_face');
     };
@@ -1108,13 +1074,13 @@
         $('faceQualityPct').textContent = (State.face.quality || 0) + '%';
 
         $('verifyStatusPill').textContent = 'Terverifikasi';
-        $('verifyStatusPill').className = 'px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold';
+        $('verifyStatusPill').className = 'rounded-full bg-emerald-500/20 px-2.5 py-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-300';
         $('verifyFaceBtnTxt').textContent = 'Verifikasi Ulang';
         $('verifyFaceBtn').disabled = false;
         $('retakeFaceBtn').disabled = false;
         $('faceReadyAlert').classList.remove('hidden');
         $('faceStatusBadgeTxt').textContent = 'Identitas terverifikasi ✓';
-        $('faceStatusBadge').className = 'absolute top-4 left-4 px-3 py-1.5 rounded-full bg-emerald-500/90 text-white text-xs font-bold';
+        $('faceStatusBadge').className = 'absolute left-4 top-4 rounded-full bg-emerald-500/90 px-3 py-1.5 text-xs font-bold text-white';
 
         if (State.face.snapshot) {
             const img = new Image();
@@ -1310,20 +1276,20 @@
         $('generateBtn').disabled = State.gestures.length === 0;
 
         if (!State.gestures.length) {
-            list.innerHTML = '<p class="text-xs text-gray-500 italic">Belum ada gestur tersimpan.</p>';
+            list.innerHTML = '<p class="text-xs italic text-slate-400 dark:text-gray-500">Belum ada gestur tersimpan.</p>';
             return;
         }
 
         list.innerHTML = State.gestures.map((g) => `
-            <div class="flex items-center gap-3 bg-black/30 rounded-2xl p-3 border border-white/10">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald to-cyan flex items-center justify-center shrink-0">
-                    <i class="fas fa-hand-sparkles text-midnight"></i>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-black/30">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald to-cyan">
+                    <i class="fas fa-hand-sparkles text-white dark:text-midnight"></i>
                 </div>
-                <div class="flex-1 min-w-0">
-                    <p class="text-sm font-bold truncate">${g.name}</p>
-                    <p class="text-[11px] text-gray-400">${g.category} → <span class="text-cyan-300 font-semibold">${FN_LABELS[g.fn] || g.fn}</span></p>
+                <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-bold">${g.name}</p>
+                    <p class="text-[11px] text-slate-500 dark:text-gray-400">${g.category} → <span class="font-semibold text-cyan-600 dark:text-cyan-300">${FN_LABELS[g.fn] || g.fn}</span></p>
                 </div>
-                <button data-id="${g.id}" class="rmGestureBtn text-rose-400 hover:text-rose-200 p-2">
+                <button data-id="${g.id}" class="rmGestureBtn p-2 text-rose-500 transition hover:text-rose-700 dark:text-rose-400 dark:hover:text-rose-200">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -1389,7 +1355,9 @@
                         const det = detections[0];
                         const box = det.detection.box;
                         drawFaceBox(ctx, box, true, true);
-                        $('finalIdentity').textContent = `${State.face.name || window.APP_USER_NAME} • ${State.face.age || Math.round(det.age)} th`;
+                        $('finalNameTxt').textContent = `${State.face.name || window.APP_USER_NAME} • ${State.face.age || Math.round(det.age)} th`;
+                        $('finalAgeTxt').textContent = State.face.age || Math.round(det.age);
+                        $('finalEmotionTxt').textContent = (EMO_MAP[State.face.emotion] || { label: '-' }).label;
                     }
                 }
 
@@ -1440,84 +1408,83 @@
         }
     }
 
-    $('toggleFinalCam').onclick = () => {
-        const wrap = $('finalCameraWrap');
-        wrap.classList.toggle('w-56');
-        wrap.classList.toggle('w-14');
-        finalVideo.classList.toggle('opacity-0');
-    };
-
     function renderFinal() {
         State.order = Array.from({ length: State.files.length }, (_, i) => i);
         renderOrderedFiles();
         updateOrderButtons();
+        renderGestureChips();
+    }
+
+    function renderGestureChips() {
+        const wrap = $('finalGestureChips');
+        if (!State.gestures.length) {
+            wrap.innerHTML = '<span class="text-[10px] italic text-slate-400 dark:text-gray-500">Belum ada</span>';
+            return;
+        }
+        wrap.innerHTML = State.gestures.map(g => `
+            <span class="rounded-full bg-cyan/20 px-2.5 py-1 text-[10px] font-bold text-cyan-600 dark:text-cyan-200">
+                ${g.name}
+            </span>
+        `).join('');
     }
 
     function renderOrderedFiles() {
-        const wrap = $('finalFileList');
+        const wrap = $('filePreviewWrap');
         if (!State.files.length) {
-            wrap.innerHTML = '<p class="text-center text-gray-500 italic">Tidak ada file.</p>';
+            wrap.innerHTML = '<p class="text-center italic text-slate-400 dark:text-gray-500">Tidak ada file.</p>';
             return;
         }
+        $('fileTotalLabel').textContent = State.files.length;
+        $('filePosLabel').textContent = '1';
+        renderFilePreviewByIndex(State.order[0]);
+    }
 
-        wrap.innerHTML = State.order.map((idx, pos) => {
-            const f = State.files[idx];
-            if (!f) return '';
-            return `
-                <div class="file-card bg-gradient-to-br from-black/40 to-black/10 border border-white/10 rounded-3xl overflow-hidden"
-                     data-file-index="${idx}" data-position="${pos}">
-                    <div class="p-4 md:p-5 flex items-center justify-between flex-wrap gap-3 border-b border-white/10">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-cyan to-electric flex items-center justify-center text-midnight font-extrabold shrink-0">
-                                #${pos + 1}
-                            </div>
-                            <div class="min-w-0">
-                                <p class="font-bold truncate">${f.name}</p>
-                                <p class="text-xs text-gray-400">${f.ext.toUpperCase()} • ${formatSize(f.size)}</p>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <button data-act="open" data-idx="${idx}"
-                                    class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan to-electric text-midnight font-bold text-xs hover:shadow-cyan/50 transition">
-                                <i class="fas fa-folder-open mr-1"></i> Buka File
-                            </button>
-                            <button data-act="full" data-idx="${idx}"
-                                    class="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs">
-                                <i class="fas fa-expand"></i> Full
-                            </button>
-                        </div>
-                    </div>
-                    <div class="relative bg-black/60" style="min-height: 380px;">
-                        ${renderFilePreview(f, idx)}
-                    </div>
-                </div>
-            `;
-        }).join('');
+    function renderFilePreviewByIndex(idx) {
+        const wrap = $('filePreviewWrap');
+        const f = State.files[idx];
+        if (!f) return;
 
-        wrap.querySelectorAll('button[data-act="open"], button[data-act="full"]').forEach(b => {
+        $('filePosBadge').textContent = '#' + (State.order.indexOf(idx) + 1);
+        $('fileTitleTxt').textContent = f.name;
+        $('fileMetaTxt').textContent = `${f.ext.toUpperCase()} • ${formatSize(f.size)}`;
+
+        let html = '';
+        if (f.ext === 'pdf') {
+            html = `<iframe src="${f.url}#toolbar=0&navpanes=0&scrollbar=0" class="h-full w-full border-0 min-h-[560px]"></iframe>`;
+        } else if (['jpg', 'jpeg', 'png'].includes(f.ext)) {
+            html = `<img src="${f.url}" class="max-h-[560px] w-full object-contain">`;
+        } else {
+            html = `
+                <div class="flex flex-col items-center justify-center px-6 py-20 text-center">
+                    <i class="fas fa-file-lines mb-4 text-7xl text-cyan/40"></i>
+                    <p class="text-lg font-bold">${f.name}</p>
+                    <p class="mb-4 mt-2 text-xs text-slate-500 dark:text-gray-400">Preview Office tersedia setelah file dibuka.</p>
+                    <button data-act="open" data-idx="${idx}"
+                            class="rounded-xl bg-gradient-to-r from-cyan to-electric px-5 py-2.5 text-sm font-bold text-white dark:text-midnight">
+                        <i class="fas fa-folder-open mr-1"></i> Buka File
+                    </button>
+                </div>`;
+        }
+        wrap.innerHTML = html;
+
+        wrap.querySelectorAll('button[data-act="open"]').forEach(b => {
             b.onclick = () => openFullscreen(+b.dataset.idx);
         });
     }
 
-    function renderFilePreview(f, idx) {
-        if (f.ext === 'pdf') {
-            return `<iframe src="${f.url}#toolbar=0&navpanes=0&scrollbar=0" class="w-full h-[520px] border-0"></iframe>`;
-        }
-        if (['jpg', 'jpeg', 'png'].includes(f.ext)) {
-            return `<img src="${f.url}" class="w-full max-h-[520px] object-contain mx-auto">`;
-        }
-        return `
-            <div class="flex flex-col items-center justify-center py-20 text-center px-6">
-                <i class="fas fa-file-lines text-7xl text-cyan/40 mb-4"></i>
-                <p class="font-bold text-lg">${f.name}</p>
-                <p class="text-xs text-gray-400 mt-2 mb-4">Preview Office tersedia setelah file dibuka.</p>
-                <button data-act="open" data-idx="${idx}"
-                        class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan to-electric text-midnight font-bold text-sm">
-                    <i class="fas fa-folder-open mr-1"></i> Buka File
-                </button>
-            </div>
-        `;
-    }
+    // Navigation
+    let currentPos = 0;
+    $('prevFileBtn').onclick = () => {
+        currentPos = Math.max(0, currentPos - 1);
+        renderFilePreviewByIndex(State.order[currentPos]);
+        $('filePosLabel').textContent = currentPos + 1;
+    };
+    $('nextFileBtn').onclick = () => {
+        currentPos = Math.min(State.order.length - 1, currentPos + 1);
+        renderFilePreviewByIndex(State.order[currentPos]);
+        $('filePosLabel').textContent = currentPos + 1;
+    };
+    $('openFsBtn').onclick = () => openFullscreen(State.order[currentPos]);
 
     document.querySelectorAll('.orderPresetBtn').forEach(b => {
         b.onclick = () => {
@@ -1528,7 +1495,9 @@
                     if (!State.order.includes(i)) State.order.push(i);
                 }
             }
-            renderOrderedFiles();
+            currentPos = 0;
+            renderFilePreviewByIndex(State.order[0]);
+            $('filePosLabel').textContent = '1';
             updateOrderButtons();
         };
     });
@@ -1539,7 +1508,8 @@
                 .filter(i => i < State.files.length).join(',');
             const actual = State.order.join(',');
             b.classList.toggle('bg-cyan', expected === actual);
-            b.classList.toggle('text-midnight', expected === actual);
+            b.classList.toggle('text-white', expected === actual);
+            b.classList.toggle('dark:text-midnight', expected === actual);
         });
     }
 
@@ -1557,15 +1527,15 @@
 
         let html = '';
         if (f.ext === 'pdf') {
-            html = `<iframe src="${f.url}#toolbar=1&navpanes=0" class="w-full h-full border-0" style="transform: scale(${zoomLevel / 100})"></iframe>`;
+            html = `<iframe src="${f.url}#toolbar=1&navpanes=0" class="h-full w-full border-0" style="transform: scale(${zoomLevel / 100})"></iframe>`;
         } else if (['jpg', 'jpeg', 'png'].includes(f.ext)) {
-            html = `<img src="${f.url}" class="max-w-full max-h-full object-contain" style="transform: scale(${zoomLevel / 100})">`;
+            html = `<img src="${f.url}" class="max-h-full max-w-full object-contain" style="transform: scale(${zoomLevel / 100})">`;
         } else {
             html = `
                 <div class="text-center text-white">
-                    <i class="fas fa-file-lines text-8xl text-cyan/40 mb-4"></i>
-                    <p class="font-bold text-xl mb-4">${f.name}</p>
-                    <a href="${f.url}" download class="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-gradient-to-r from-cyan to-electric text-midnight font-extrabold">
+                    <i class="fas fa-file-lines mb-4 text-8xl text-cyan/40"></i>
+                    <p class="mb-4 text-xl font-bold">${f.name}</p>
+                    <a href="${f.url}" download class="inline-flex items-center gap-2 rounded-2xl bg-gradient-to-r from-cyan to-electric px-6 py-3 font-extrabold text-white dark:text-midnight">
                         <i class="fas fa-download"></i> Download / Buka File
                     </a>
                 </div>`;
@@ -1588,18 +1558,10 @@
     }
 
     function scrollToFile(direction) {
-        const cards = document.querySelectorAll('.file-card');
-        if (!cards.length) return;
-        let closestIdx = 0, closestDist = Infinity;
-        const vh = window.innerHeight / 2;
-        cards.forEach((c, i) => {
-            const r = c.getBoundingClientRect();
-            const d = Math.abs((r.top + r.bottom) / 2 - vh);
-            if (d < closestDist) { closestDist = d; closestIdx = i; }
-        });
-        const next = Math.max(0, Math.min(cards.length - 1, closestIdx + direction));
-        cards[next].scrollIntoView({ behavior: 'smooth', block: 'center' });
-        logAction(`Slide → File #${next + 1}`);
+        currentPos = Math.max(0, Math.min(State.order.length - 1, currentPos + direction));
+        renderFilePreviewByIndex(State.order[currentPos]);
+        $('filePosLabel').textContent = currentPos + 1;
+        logAction(`Slide → File #${currentPos + 1}`);
     }
 
     /* ============================================================
@@ -1608,19 +1570,19 @@
     function logAction(msg) {
         const log = $('actionLog');
         if (log.classList.contains('italic')) {
-            log.classList.remove('italic', 'text-gray-400');
+            log.classList.remove('italic', 'text-slate-400', 'text-gray-400');
             log.innerHTML = '';
         }
         const line = document.createElement('div');
-        line.className = 'py-1.5 border-b border-white/5 flex items-center justify-between';
+        line.className = 'flex items-center justify-between border-b border-slate-200 py-1.5 dark:border-white/5';
         line.innerHTML = `
-            <span><i class="fas fa-bolt text-yellow-300 mr-2"></i> ${msg}</span>
-            <span class="text-gray-500 text-[10px]">${new Date().toLocaleTimeString('id-ID')}</span>
+            <span><i class="fas fa-bolt mr-2 text-yellow-500 dark:text-yellow-300"></i> ${msg}</span>
+            <span class="text-[10px] text-slate-400 dark:text-gray-500">${new Date().toLocaleTimeString('id-ID')}</span>
         `;
         log.prepend(line);
     }
     $('clearLogBtn').onclick = () => {
-        $('actionLog').innerHTML = '<p class="text-xs text-gray-400 italic">Belum ada aksi.</p>';
+        $('actionLog').innerHTML = '<p class="text-xs italic text-slate-400 dark:text-gray-400">Belum ada aksi.</p>';
     };
 
     /* ============================================================

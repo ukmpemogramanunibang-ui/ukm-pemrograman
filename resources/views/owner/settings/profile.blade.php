@@ -1,465 +1,864 @@
 @extends('layouts.roles.owner')
 
-@section('title', 'Pengaturan Data Diri – Owner UNICODE')
-@section('page-title', 'Pengaturan Data Diri')
+@section('title', 'Data Diri Owner – UNICODE')
+@section('page-title', 'Data Diri Owner')
 
 @push('styles')
 <style>
-    .profile-avatar {
-        width: 220px;
-        height: 220px;
-        min-width: 220px;
-        max-width: 220px;
-        border-radius: 0;
-        object-fit: cover;
-        border: 3px solid #e5e7eb;
-        transition: 0.3s;
-        display: block;
-        background: #f3f4f6;
+    .profile-tab-btn {
+        padding: .55rem 1.15rem;
+        border-radius: .75rem;
+        font-size: .85rem;
+        font-weight: 600;
+        color: #6b7280;
+        transition: all .2s;
+        border: none;
+        background: transparent;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: .4rem;
     }
-    .profile-avatar:hover {
-        border-color: #6366f1;
-        box-shadow: 0 0 0 4px rgba(99,102,241,0.3);
+    .profile-tab-btn:hover {
+        color: #111827;
+        background: rgba(0,0,0,.04);
     }
+    .profile-tab-btn.active {
+        background: white;
+        color: #0891b2;
+        box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+    .dark .profile-tab-btn {
+        color: #9ca3af;
+    }
+    .dark .profile-tab-btn:hover {
+        color: #e5e7eb;
+        background: rgba(255,255,255,.05);
+    }
+    .dark .profile-tab-btn.active {
+        background: #374151;
+        color: #22d3ee;
+    }
+
+    /* Avatar */
     .avatar-wrapper {
+        position: relative;
         display: inline-block;
         line-height: 0;
-        position: relative;
+    }
+    .profile-avatar {
+        width: 180px;
+        height: 180px;
+        border-radius: 1.25rem;
+        object-fit: cover;
+        border: 4px solid white;
+        box-shadow: 0 8px 30px rgba(0,0,0,.15);
+        background: #f3f4f6;
+        transition: all .3s;
+        display: block;
+    }
+    .dark .profile-avatar {
+        border-color: #1f2937;
+    }
+    .avatar-wrapper:hover .profile-avatar {
+        transform: scale(1.02);
+        box-shadow: 0 12px 40px rgba(99,102,241,.3);
     }
     .upload-avatar-btn {
         position: absolute;
-        bottom: 6px;
-        right: 6px;
-        background: #6366f1;
+        bottom: 8px;
+        right: 8px;
+        width: 42px;
+        height: 42px;
+        background: linear-gradient(135deg, #06b6d4, #0891b2);
         color: white;
-        padding: 10px 12px;
         border-radius: 50%;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        display: flex;
+        align-items: center;
+        justify-content: center;
         cursor: pointer;
-        transition: 0.3s;
-        line-height: 1;
-        font-size: 14px;
+        box-shadow: 0 4px 12px rgba(6,182,212,.4);
+        transition: all .2s;
+        border: 3px solid white;
+    }
+    .dark .upload-avatar-btn {
+        border-color: #1f2937;
     }
     .upload-avatar-btn:hover {
-        background: #4f46e5;
         transform: scale(1.1);
+        box-shadow: 0 6px 18px rgba(6,182,212,.55);
     }
     .upload-avatar-btn input[type="file"] {
         position: absolute;
-        left: 0;
-        top: 0;
+        inset: 0;
         opacity: 0;
-        width: 100%;
-        height: 100%;
         cursor: pointer;
     }
-    .form-divider {
-        border-top: 1px solid #e5e7eb;
-        margin: 1.5rem 0;
+
+    /* Form controls */
+    .form-label {
+        display: block;
+        font-size: .8rem;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: .35rem;
     }
-    .dark .form-divider {
-        border-color: #374151;
+    .dark .form-label {
+        color: #d1d5db;
     }
-    .social-media-row {
+    .form-input {
+        width: 100%;
+        padding: .6rem .9rem;
+        border-radius: .65rem;
+        border: 1px solid #d1d5db;
+        background: white;
+        color: #111827;
+        font-size: .875rem;
+        transition: all .15s;
+    }
+    .form-input:focus {
+        outline: none;
+        border-color: #06b6d4;
+        box-shadow: 0 0 0 3px rgba(6,182,212,.15);
+    }
+    .dark .form-input {
+        background: #374151;
+        border-color: #4b5563;
+        color: #e5e7eb;
+    }
+    .form-input:disabled {
+        background: #f3f4f6;
+        color: #9ca3af;
+        cursor: not-allowed;
+    }
+    .dark .form-input:disabled {
+        background: #1f2937;
+        color: #6b7280;
+    }
+    .form-input.has-error {
+        border-color: #ef4444;
+    }
+
+    /* Social media row */
+    .social-row {
         display: flex;
-        gap: 0.5rem;
+        gap: .5rem;
         align-items: center;
-        flex-wrap: wrap;
+        margin-bottom: .5rem;
     }
-    .social-media-row select {
-        min-width: 120px;
+    .social-row select {
+        min-width: 130px;
+        flex-shrink: 0;
     }
-    .profile-stats {
+    .social-row input {
+        flex: 1;
+    }
+    .social-row button {
+        width: 40px;
+        height: 40px;
+        border-radius: .65rem;
+        background: #fee2e2;
+        color: #dc2626;
+        border: none;
+        cursor: pointer;
         display: flex;
+        align-items: center;
         justify-content: center;
-        gap: 1.5rem;
-        margin-top: 0.75rem;
-        font-size: 0.9rem;
-        color: #6b7280;
+        flex-shrink: 0;
+        transition: all .15s;
     }
-    .dark .profile-stats {
+    .social-row button:hover {
+        background: #fecaca;
+    }
+    .dark .social-row button {
+        background: rgba(239,68,68,.15);
+        color: #f87171;
+    }
+
+    /* Info row */
+    .info-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: .85rem 1.25rem;
+        transition: background .15s;
+    }
+    .info-row:hover {
+        background: #f9fafb;
+    }
+    .dark .info-row:hover {
+        background: rgba(55,65,81,.3);
+    }
+    .info-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: .65rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    /* Section divider */
+    .section-title {
+        font-size: .75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #6b7280;
+        display: flex;
+        align-items: center;
+        gap: .5rem;
+        margin-bottom: 1rem;
+    }
+    .section-title::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, #e5e7eb, transparent);
+    }
+    .dark .section-title {
         color: #9ca3af;
     }
-    .profile-stats span i {
-        margin-right: 0.25rem;
-    }
-    .social-icons {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5rem;
-        justify-content: center;
-        margin-top: 0.5rem;
-    }
-    .social-icons a {
-        font-size: 1.5rem;
-        color: #6b7280;
-        transition: 0.2s;
-    }
-    .social-icons a:hover {
-        color: #6366f1;
-    }
-    .dark .social-icons a {
-        color: #9ca3af;
-    }
-    .dark .social-icons a:hover {
-        color: #818cf8;
+    .dark .section-title::after {
+        background: linear-gradient(90deg, #374151, transparent);
     }
 </style>
 @endpush
 
 @section('content')
-<div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-    <div class="p-6">
-        <!-- Header -->
-        <div class="flex items-center justify-between mb-6">
-            <div>
-                <h3 class="text-2xl font-bold text-gray-800 dark:text-white">Edit Profile</h3>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Kelola data diri dan informasi akun Anda.</p>
-            </div>
-            <span class="px-3 py-1 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 rounded-full text-sm font-medium">
-                {{ ucfirst(Auth::user()->level->name ?? 'Owner') }}
-            </span>
+@php
+    $user = auth()->user()->load(['level', 'status', 'jabatans']);
+    $initials = strtoupper(collect(explode(' ', $user->name ?? 'Owner'))
+        ->filter()->map(fn ($w) => mb_substr($w, 0, 1))->take(2)->implode(''));
+    $avatarPath = $user->avatar_url
+        ? asset('storage/' . $user->avatar_url)
+        : 'https://ui-avatars.com/api/?name=' . urlencode($user->name ?? 'O') . '&background=06b6d4&color=fff&size=256&bold=true';
+
+    $socials = old('social_media', $user->social_media ?? []);
+    if (!is_array($socials) || empty($socials)) {
+        $socials = [['platform' => 'instagram', 'url' => '']];
+    }
+@endphp
+
+<div class="space-y-6 max-w-6xl">
+
+    {{-- HEADER --}}
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <p class="text-[11px] uppercase tracking-[0.15em] text-cyan-500 font-bold mb-1">
+                Account Profile
+            </p>
+            <h1 class="text-2xl lg:text-3xl font-extrabold text-gray-900 dark:text-white">
+                Data Diri Owner
+            </h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Kelola identitas, keamanan, dan informasi kontak akun Owner.
+            </p>
         </div>
 
-        <!-- Notifikasi -->
-        @if(session('success'))
-            <div class="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 p-3 rounded-lg mb-4">
-                {{ session('success') }}
-            </div>
-        @endif
-        @if(session('error'))
-            <div class="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-3 rounded-lg mb-4">
-                {{ session('error') }}
-            </div>
-        @endif
-        @if($errors->any())
-            <div class="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 p-3 rounded-lg mb-4">
-                <ul class="list-disc list-inside text-sm">
-                    @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ route('owner.settings.general') }}"
+               class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-semibold transition">
+                <i class="fas fa-arrow-left"></i> Dashboard Builder
+            </a>
+        </div>
+    </div>
 
-        <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data">
+    {{-- TABS --}}
+    @include('owner.settings._sidebar')
+
+    {{-- FLASH --}}
+    @if (session('status') === 'profile-updated' || session('success'))
+        <div class="rounded-2xl border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-900/20 p-4 flex items-start gap-3">
+            <div class="w-9 h-9 rounded-xl bg-green-500/20 text-green-600 dark:text-green-400 flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="flex-1 text-sm">
+                <p class="font-semibold text-green-800 dark:text-green-200">Perubahan berhasil disimpan</p>
+                <p class="text-green-700/80 dark:text-green-300/80 text-xs mt-0.5">
+                    {{ session('success') ?? 'Data profil Anda telah diperbarui.' }}
+                </p>
+            </div>
+        </div>
+    @endif
+
+    @if ($errors->any())
+        <div class="rounded-2xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/20 p-4">
+            <div class="flex items-start gap-3">
+                <div class="w-9 h-9 rounded-xl bg-red-500/20 text-red-600 dark:text-red-400 flex items-center justify-center flex-shrink-0">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="font-semibold text-red-800 dark:text-red-200 text-sm">Ada kesalahan pada form</p>
+                    <ul class="mt-1.5 space-y-0.5 text-xs text-red-700 dark:text-red-300 list-disc list-inside">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    {{-- TABS NAV --}}
+    <div class="flex flex-wrap gap-1 p-1 rounded-2xl bg-gray-100 dark:bg-gray-800 w-fit">
+        <button type="button" data-profile-tab="overview" class="profile-tab-btn active">
+            <i class="fas fa-user-circle text-xs"></i> Overview
+        </button>
+        <button type="button" data-profile-tab="edit" class="profile-tab-btn">
+            <i class="fas fa-user-edit text-xs"></i> Edit Data
+        </button>
+        <button type="button" data-profile-tab="security" class="profile-tab-btn">
+            <i class="fas fa-shield-alt text-xs"></i> Keamanan
+        </button>
+    </div>
+
+    {{-- ============================================================
+         TAB 1: OVERVIEW
+         ============================================================ --}}
+    <div data-profile-panel="overview">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            {{-- KARTU PROFIL (KIRI) --}}
+            <div class="lg:col-span-1">
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+
+                    {{-- Banner --}}
+                    <div class="h-24 bg-gradient-to-br from-amber-400 via-amber-500 to-amber-600 dark:from-amber-600 dark:via-amber-700 dark:to-amber-800 relative">
+                        <div class="absolute -right-12 -top-12 w-40 h-40 bg-white/10 rounded-full blur-2xl"></div>
+                    </div>
+
+                    {{-- Avatar --}}
+                    <div class="px-6 pb-6 -mt-12 text-center">
+                        <div class="inline-block relative">
+                            <img src="{{ $avatarPath }}"
+                                 alt="{{ $user->name }}"
+                                 class="w-28 h-28 rounded-2xl border-4 border-white dark:border-gray-800 object-cover shadow-xl mx-auto bg-gray-100">
+                            @if ($user->is_active)
+                                <span class="absolute bottom-1 right-1 w-5 h-5 bg-emerald-400 rounded-full border-3 border-white dark:border-gray-800 shadow" title="Aktif"></span>
+                            @endif
+                        </div>
+
+                        <h2 class="mt-3 text-lg font-bold text-gray-900 dark:text-white truncate">
+                            {{ $user->name }}
+                        </h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {{ $user->email ?? '-' }}
+                        </p>
+
+                        <div class="flex justify-center mt-3">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/15 text-amber-700 dark:text-amber-400 text-[11px] font-bold uppercase tracking-wide">
+                                <i class="fas fa-crown"></i> Owner
+                            </span>
+                        </div>
+
+                        {{-- Social links --}}
+                        @if (!empty($user->social_media) && is_array($user->social_media))
+                            <div class="flex flex-wrap justify-center gap-2 mt-3">
+                                @foreach ($user->social_media as $soc)
+                                    @if (!empty($soc['url']))
+                                        @php
+                                            $iconMap = [
+                                                'instagram' => 'fab fa-instagram',
+                                                'facebook'  => 'fab fa-facebook',
+                                                'telegram'  => 'fab fa-telegram',
+                                                'x'         => 'fab fa-x-twitter',
+                                            ];
+                                        @endphp
+                                        <a href="{{ $soc['url'] }}" target="_blank" rel="noopener noreferrer"
+                                           class="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/30 hover:text-cyan-600 transition"
+                                           title="{{ ucfirst($soc['platform']) }}">
+                                            <i class="{{ $iconMap[$soc['platform']] ?? 'fas fa-link' }}"></i>
+                                        </a>
+                                    @endif
+                                @endforeach
+                            </div>
+                        @endif
+
+                        {{-- Share --}}
+                        <div class="grid grid-cols-2 gap-2 mt-4">
+                            <a href="{{ route('profile.public', $user->id) }}" target="_blank"
+                               class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-cyan-50 dark:bg-cyan-900/20 text-cyan-600 dark:text-cyan-400 text-xs font-semibold hover:bg-cyan-100 dark:hover:bg-cyan-900/30 transition">
+                                <i class="fas fa-share-alt"></i> Lihat Publik
+                            </a>
+                            <button type="button" data-profile-tab-jump="edit"
+                                    class="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 text-xs font-semibold hover:bg-amber-100 dark:hover:bg-amber-900/30 transition">
+                                <i class="fas fa-user-edit"></i> Edit Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {{-- DETAIL GRID (KANAN) --}}
+            <div class="lg:col-span-2 space-y-6">
+
+                {{-- IDENTITAS --}}
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                    <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                        <h3 class="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                            <i class="fas fa-id-card text-cyan-500"></i> Identitas
+                        </h3>
+                    </div>
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                        @php
+                            $identityRows = [
+                                ['label' => 'Nama Lengkap', 'value' => $user->name ?? '-',                 'icon' => 'fa-user',       'color' => 'blue'],
+                                ['label' => 'NIM',          'value' => $user->nim ?? '-',                  'icon' => 'fa-hashtag',    'color' => 'indigo'],
+                                ['label' => 'Email',        'value' => $user->email ?? '-',                'icon' => 'fa-envelope',   'color' => 'cyan'],
+                                ['label' => 'No. HP',       'value' => $user->phone ?? '-',                'icon' => 'fa-phone',      'color' => 'green'],
+                                ['label' => 'Alamat',       'value' => $user->address ?? '-',              'icon' => 'fa-map-marker-alt', 'color' => 'pink'],
+                                ['label' => 'Tanggal Lahir','value' => $user->birth_date ? \Carbon\Carbon::parse($user->birth_date)->translatedFormat('d F Y') : '-', 'icon' => 'fa-birthday-cake', 'color' => 'rose'],
+                            ];
+                        @endphp
+                        @foreach ($identityRows as $row)
+                            <div class="info-row">
+                                <div class="info-icon bg-{{ $row['color'] }}-500/15 text-{{ $row['color'] }}-500">
+                                    <i class="fas {{ $row['icon'] }}"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">{{ $row['label'] }}</p>
+                                    <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ $row['value'] }}</p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                {{-- STATUS & ORGANISASI --}}
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm">
+                    <div class="px-5 py-4 border-b border-gray-100 dark:border-gray-700">
+                        <h3 class="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2">
+                            <i class="fas fa-sitemap text-purple-500"></i> Organisasi
+                        </h3>
+                    </div>
+                    <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                        @php
+                            $orgRows = [
+                                ['label' => 'Level',    'value' => $user->level->display_name ?? $user->level->name ?? '-', 'icon' => 'fa-layer-group', 'color' => 'amber'],
+                                ['label' => 'Status',   'value' => $user->status->display_name ?? $user->status->name ?? ($user->is_active ? 'Aktif' : 'Nonaktif'), 'icon' => 'fa-circle-check', 'color' => 'emerald'],
+                                ['label' => 'Jabatan',  'value' => $user->jabatans->pluck('name')->implode(', ') ?: '-', 'icon' => 'fa-briefcase', 'color' => 'purple'],
+                                ['label' => 'Bergabung','value' => optional($user->created_at)->translatedFormat('d F Y') ?? '-', 'icon' => 'fa-calendar', 'color' => 'cyan'],
+                            ];
+                        @endphp
+                        @foreach ($orgRows as $row)
+                            <div class="info-row">
+                                <div class="info-icon bg-{{ $row['color'] }}-500/15 text-{{ $row['color'] }}-500">
+                                    <i class="fas {{ $row['icon'] }}"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-[10px] uppercase tracking-wider text-gray-500 dark:text-gray-400 font-bold">{{ $row['label'] }}</p>
+                                    <p class="text-sm font-semibold text-gray-900 dark:text-white truncate">{{ $row['value'] }}</p>
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+
+                {{-- KEAHLIAN --}}
+                @if (!empty($user->skills))
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm">
+                        <h3 class="font-bold text-sm text-gray-900 dark:text-white flex items-center gap-2 mb-3">
+                            <i class="fas fa-tools text-amber-500"></i> Keahlian
+                        </h3>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach ((array) $user->skills as $skill)
+                                @if (trim($skill))
+                                    <span class="px-3 py-1 rounded-full bg-cyan-50 dark:bg-cyan-900/20 text-cyan-700 dark:text-cyan-300 text-xs font-semibold">
+                                        {{ trim($skill) }}
+                                    </span>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
+            </div>
+        </div>
+    </div>
+
+    {{-- ============================================================
+         TAB 2: EDIT DATA
+         ============================================================ --}}
+    <div data-profile-panel="edit" class="hidden">
+        <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data" class="space-y-6">
             @csrf
             @method('PATCH')
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <!-- Kolom Kiri: Avatar & Info -->
-                <div class="lg:col-span-1 flex flex-col items-center text-center">
-                    <div class="avatar-wrapper">
-                        @php
-                            $avatarPath = Auth::user()->avatar_url 
-                                ? asset('storage/' . Auth::user()->avatar_url) 
-                                : asset('images/gif.gif');
-                        @endphp
-                        <img src="{{ $avatarPath }}"
-                             alt="Avatar"
-                             class="profile-avatar"
-                             id="avatar-preview">
-                        <label class="upload-avatar-btn" title="Ubah Avatar">
-                            <i class="fas fa-camera"></i>
-                            <input type="file" name="avatar" accept="image/*" id="avatar-input">
-                        </label>
-                    </div>
+            {{-- AVATAR + IDENTITAS --}}
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+                <h2 class="section-title">
+                    <i class="fas fa-camera text-cyan-500"></i> Foto & Identitas
+                </h2>
 
-                    <h4 class="mt-4 text-xl font-semibold text-gray-800 dark:text-white">{{ Auth::user()->name }}</h4>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">{{ Auth::user()->email }}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                        Status: {{ Auth::user()->is_active ? 'Aktif' : 'Tidak Aktif' }}
-                    </p>
-
-                    <div class="profile-stats">
-                        <span><i class="fas fa-heart text-red-500"></i> 0</span>
-                        <span><i class="fas fa-thumbtack"></i> 0</span>
-                        <span><i class="fas fa-bookmark"></i> 0</span>
-                    </div>
-
-                    <!-- Sosial Media yang tersimpan -->
-                    @if(Auth::user()->social_media)
-                        <div class="social-icons">
-                            @foreach(Auth::user()->social_media as $soc)
-                                @php
-                                    $icon = match($soc['platform']) {
-                                        'instagram' => 'fab fa-instagram',
-                                        'facebook' => 'fab fa-facebook',
-                                        'telegram' => 'fab fa-telegram',
-                                        'x' => 'fab fa-x-twitter',
-                                        default => 'fas fa-link'
-                                    };
-                                @endphp
-                                <a href="{{ $soc['url'] }}" target="_blank" title="{{ ucfirst($soc['platform']) }}">
-                                    <i class="{{ $icon }}"></i>
-                                </a>
-                            @endforeach
+                <div class="grid md:grid-cols-[auto,1fr] gap-6 items-start">
+                    {{-- Avatar --}}
+                    <div class="text-center md:text-left">
+                        <div class="avatar-wrapper">
+                            <img src="{{ $avatarPath }}" alt="{{ $user->name }}" class="profile-avatar" id="avatar-preview">
+                            <label class="upload-avatar-btn" title="Ubah avatar">
+                                <i class="fas fa-camera"></i>
+                                <input type="file" name="avatar" accept="image/*" id="avatar-input">
+                            </label>
                         </div>
-                    @endif
-
-                    <!-- Tombol Share Profile -->
-                    <div class="mt-4 w-full">
-                        <a href="{{ route('profile.public', Auth::user()->id) }}" target="_blank" 
-                           class="block w-full py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-medium hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition">
-                            <i class="fas fa-share-alt mr-2"></i> Share Profile
-                        </a>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            JPG/PNG/WEBP. Maks 2 MB.
+                        </p>
+                        @error('avatar')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                     </div>
 
-                    <!-- Menu tambahan (statis) -->
-                    <div class="mt-2 w-full">
-                        <a href="#" class="block w-full py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-sm font-medium hover:bg-gray-200 dark:hover:bg-gray-600 transition">
-                            <i class="fas fa-user-edit mr-2"></i> Edit profile
-                        </a>
-                    </div>
-                    <div class="mt-4 w-full space-y-2">
-                        <a href="#" class="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                            <i class="fas fa-user-friends w-6 text-indigo-400"></i> Add friends
-                        </a>
-                        <a href="#" class="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                            <i class="fas fa-life-ring w-6 text-indigo-400"></i> Help & Support
-                        </a>
-                        <a href="#" class="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                            <i class="fas fa-file-alt w-6 text-indigo-400"></i> Terms and Policies
-                        </a>
-                        <a href="#" class="flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition">
-                            <i class="fas fa-flag w-6 text-indigo-400"></i> Report a problem
-                        </a>
-                    </div>
-
-                    <!-- Logout -->
-                    <div class="mt-4 w-full">
-                        <form action="{{ route('logout') }}" method="POST">
-                            @csrf
-                            <button type="submit" class="w-full py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition">
-                                <i class="fas fa-sign-out-alt mr-2"></i> Logout
-                            </button>
-                        </form>
-                    </div>
-                </div>
-
-                <!-- Kolom Kanan: Form Fields -->
-                <div class="lg:col-span-2">
-                    <!-- Nama -->
-                    <div class="mb-4">
-                        <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
-                        <input type="text" name="name" id="name" value="{{ old('name', Auth::user()->name) }}"
-                               class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('name') border-red-500 @enderror">
-                        @error('name') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-
-                    <!-- Email -->
-                    <div class="mb-4">
-                        <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
-                        <input type="email" name="email" id="email" value="{{ old('email', Auth::user()->email) }}"
-                               class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('email') border-red-500 @enderror">
-                        @error('email') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-
-                    <!-- Bio -->
-                    <div class="mb-4">
-                        <label for="bio" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Bio</label>
-                        <textarea name="bio" id="bio" rows="3"
-                                  class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('bio') border-red-500 @enderror">{{ old('bio', Auth::user()->bio) }}</textarea>
-                        @error('bio') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-
-                    <!-- Row: Tanggal Lahir & Phone -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="mb-4">
-                            <label for="birth_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date of Birth</label>
-                            <input type="date" name="birth_date" id="birth_date" value="{{ old('birth_date', Auth::user()->birth_date ? Auth::user()->birth_date->format('Y-m-d') : '') }}"
-                                   class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('birth_date') border-red-500 @enderror">
-                            @error('birth_date') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                    {{-- Fields --}}
+                    <div class="grid sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="form-label" for="name">Nama Lengkap <span class="text-red-500">*</span></label>
+                            <input type="text" name="name" id="name" required
+                                   value="{{ old('name', $user->name) }}"
+                                   class="form-input @error('name') has-error @enderror">
+                            @error('name')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                         </div>
-                        <div class="mb-4">
-                            <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Phone</label>
-                            <input type="text" name="phone" id="phone" value="{{ old('phone', Auth::user()->phone) }}"
-                                   class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('phone') border-red-500 @enderror">
-                            @error('phone') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+
+                        <div>
+                            <label class="form-label" for="nim">NIM</label>
+                            <input type="text" name="nim" id="nim"
+                                   value="{{ old('nim', $user->nim) }}"
+                                   class="form-input @error('nim') has-error @enderror">
+                            @error('nim')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                         </div>
-                    </div>
 
-                    <!-- Row: Gender & Country -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="mb-4">
-                            <label for="gender" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Gender</label>
-                            <select name="gender" id="gender"
-                                    class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('gender') border-red-500 @enderror">
-                                <option value="">Pilih</option>
-                                <option value="male" {{ old('gender', Auth::user()->gender) == 'male' ? 'selected' : '' }}>Laki-laki</option>
-                                <option value="female" {{ old('gender', Auth::user()->gender) == 'female' ? 'selected' : '' }}>Perempuan</option>
-                            </select>
-                            @error('gender') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                        <div>
+                            <label class="form-label" for="email">Email <span class="text-red-500">*</span></label>
+                            <input type="email" name="email" id="email" required
+                                   value="{{ old('email', $user->email) }}"
+                                   class="form-input @error('email') has-error @enderror">
+                            @error('email')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                         </div>
-                        <div class="mb-4">
-                            <label for="country" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Country/Region</label>
-                            <input type="text" name="country" id="country" value="{{ old('country', Auth::user()->country ?? 'Indonesia') }}"
-                                   class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('country') border-red-500 @enderror">
-                            @error('country') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+
+                        <div>
+                            <label class="form-label" for="phone">No. HP</label>
+                            <input type="text" name="phone" id="phone"
+                                   value="{{ old('phone', $user->phone) }}"
+                                   class="form-input @error('phone') has-error @enderror"
+                                   placeholder="08123456789">
+                            @error('phone')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
                         </div>
-                    </div>
-
-                    <!-- Alamat -->
-                    <div class="mb-4">
-                        <label for="address" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Alamat</label>
-                        <textarea name="address" id="address" rows="2"
-                                  class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('address') border-red-500 @enderror">{{ old('address', Auth::user()->address) }}</textarea>
-                        @error('address') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-
-                    <!-- Row: Semester & Poin/Rank -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="mb-4">
-                            <label for="semester" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Semester</label>
-                            <input type="text" name="semester" id="semester" value="{{ old('semester', Auth::user()->semester) }}"
-                                   class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('semester') border-red-500 @enderror">
-                            @error('semester') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                        </div>
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Poin / Rank</label>
-                            <div class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5">
-                                {{ Auth::user()->total_points ?? 0 }} poin (Rank: #{{ Auth::user()->rank ?? '-' }})
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Portofolio -->
-                    <div class="mb-4">
-                        <label for="portfolio_url" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Link Portofolio</label>
-                        <input type="url" name="portfolio_url" id="portfolio_url" value="{{ old('portfolio_url', Auth::user()->portfolio_url) }}"
-                               class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('portfolio_url') border-red-500 @enderror" placeholder="https://portofolio-saya.com">
-                        @error('portfolio_url') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-
-                    <!-- Sosial Media (dinamis) -->
-                    <div class="mb-4">
-                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Sosial Media</label>
-                        <div id="social-media-container">
-                            @php
-                                $socials = old('social_media', Auth::user()->social_media ?? []);
-                            @endphp
-                            @if(count($socials) > 0)
-                                @foreach($socials as $index => $soc)
-                                    <div class="social-media-row mb-2">
-                                        <select name="social_media[{{ $index }}][platform]" class="rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-indigo-500">
-                                            <option value="instagram" {{ $soc['platform'] == 'instagram' ? 'selected' : '' }}>Instagram</option>
-                                            <option value="facebook" {{ $soc['platform'] == 'facebook' ? 'selected' : '' }}>Facebook</option>
-                                            <option value="telegram" {{ $soc['platform'] == 'telegram' ? 'selected' : '' }}>Telegram</option>
-                                            <option value="x" {{ $soc['platform'] == 'x' ? 'selected' : '' }}>X (Twitter)</option>
-                                        </select>
-                                        <input type="url" name="social_media[{{ $index }}][url]" value="{{ $soc['url'] }}" placeholder="https://..."
-                                               class="flex-1 rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 focus:ring-2 focus:ring-indigo-500">
-                                        <button type="button" class="remove-social-btn text-red-500 hover:text-red-700">
-                                            <i class="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                @endforeach
-                            @else
-                                <div class="social-media-row mb-2">
-                                    <select name="social_media[0][platform]" class="rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-indigo-500">
-                                        <option value="instagram">Instagram</option>
-                                        <option value="facebook">Facebook</option>
-                                        <option value="telegram">Telegram</option>
-                                        <option value="x">X (Twitter)</option>
-                                    </select>
-                                    <input type="url" name="social_media[0][url]" placeholder="https://..."
-                                           class="flex-1 rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 focus:ring-2 focus:ring-indigo-500">
-                                    <button type="button" class="remove-social-btn text-red-500 hover:text-red-700">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                            @endif
-                        </div>
-                        <button type="button" id="add-social-btn" class="mt-1 text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400">
-                            <i class="fas fa-plus-circle"></i> Tambah Sosial Media
-                        </button>
-                        @error('social_media') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-
-                    <!-- Keahlian -->
-                    <div class="mb-4">
-                        <label for="skills" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Kategori Keahlian (pisahkan dengan koma)</label>
-                        <input type="text" name="skills" id="skills" value="{{ old('skills', is_array(Auth::user()->skills) ? implode(', ', Auth::user()->skills) : '') }}"
-                               class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('skills') border-red-500 @enderror" placeholder="backend, frontend, ui/ux, ...">
-                        @error('skills') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-
-                    <!-- PIN khusus owner -->
-                    @if(Auth::user()->level_id == 1)
-                        <div class="mb-4">
-                            <label for="pin" class="block text-sm font-medium text-gray-700 dark:text-gray-300">PIN Keamanan</label>
-                            <input type="password" name="pin" id="pin" value="{{ old('pin') }}" maxlength="10"
-                                   class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('pin') border-red-500 @enderror" placeholder="Masukkan PIN (4-10 digit)">
-                            @error('pin') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                        </div>
-                    @endif
-
-                    <!-- Password -->
-                    <div class="form-divider"></div>
-                    <div class="mb-4">
-                        <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">New Password <span class="text-xs text-gray-400">(kosongkan jika tidak diubah)</span></label>
-                        <input type="password" name="password" id="password"
-                               class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent @error('password') border-red-500 @enderror">
-                        @error('password') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
-                    </div>
-                    <div class="mb-4">
-                        <label for="password_confirmation" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password</label>
-                        <input type="password" name="password_confirmation" id="password_confirmation"
-                               class="mt-1 w-full rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2.5 focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
-                    </div>
-
-                    <!-- Tombol Aksi -->
-                    <div class="flex justify-end gap-3 mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                       <a href="{{ route('profile.public', Auth::user()->id) }}" class="px-6 py-2.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg font-medium hover:bg-gray-300 dark:hover:bg-gray-600 transition">Batal</a>
-                        <button type="submit" class="px-6 py-2.5 bg-gradient-to-r from-indigo-500 to-indigo-600 text-white font-bold rounded-lg hover:shadow-lg hover:scale-105 transition-all duration-200">
-                            <i class="fas fa-save mr-2"></i> Save Changes
-                        </button>
                     </div>
                 </div>
             </div>
+
+            {{-- DETAIL PRIBADI --}}
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+                <h2 class="section-title">
+                    <i class="fas fa-user text-purple-500"></i> Detail Pribadi
+                </h2>
+
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label" for="birth_date">Tanggal Lahir</label>
+                        <input type="date" name="birth_date" id="birth_date"
+                               value="{{ old('birth_date', $user->birth_date ? \Carbon\Carbon::parse($user->birth_date)->format('Y-m-d') : '') }}"
+                               class="form-input">
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="gender">Jenis Kelamin</label>
+                        <select name="gender" id="gender" class="form-input">
+                            <option value="">— Pilih —</option>
+                            <option value="male"   {{ old('gender', $user->gender) === 'male'   ? 'selected' : '' }}>Laki-laki</option>
+                            <option value="female" {{ old('gender', $user->gender) === 'female' ? 'selected' : '' }}>Perempuan</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="country">Negara</label>
+                        <input type="text" name="country" id="country"
+                               value="{{ old('country', $user->country ?? 'Indonesia') }}"
+                               class="form-input">
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="semester">Semester</label>
+                        <input type="text" name="semester" id="semester"
+                               value="{{ old('semester', $user->semester) }}"
+                               class="form-input">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="form-label" for="address">Alamat</label>
+                        <textarea name="address" id="address" rows="2"
+                                  class="form-input">{{ old('address', $user->address) }}</textarea>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="form-label" for="bio">Bio</label>
+                        <textarea name="bio" id="bio" rows="3"
+                                  class="form-input"
+                                  placeholder="Ceritakan singkat tentang Anda...">{{ old('bio', $user->bio) }}</textarea>
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="form-label" for="portfolio_url">Link Portofolio</label>
+                        <input type="url" name="portfolio_url" id="portfolio_url"
+                               value="{{ old('portfolio_url', $user->portfolio_url) }}"
+                               class="form-input"
+                               placeholder="https://portofolio-saya.com">
+                    </div>
+
+                    <div class="sm:col-span-2">
+                        <label class="form-label" for="skills">Keahlian (pisahkan dengan koma)</label>
+                        <input type="text" name="skills" id="skills"
+                               value="{{ old('skills', is_array($user->skills) ? implode(', ', $user->skills) : '') }}"
+                               class="form-input"
+                               placeholder="backend, frontend, ui/ux">
+                    </div>
+                </div>
+            </div>
+
+            {{-- SOSIAL MEDIA --}}
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+                <h2 class="section-title">
+                    <i class="fas fa-share-alt text-pink-500"></i> Sosial Media
+                </h2>
+
+                <div id="social-media-container">
+                    @foreach ($socials as $i => $soc)
+                        <div class="social-row">
+                            <select name="social_media[{{ $i }}][platform]" class="form-input">
+                                @foreach (['instagram' => 'Instagram', 'facebook' => 'Facebook', 'telegram' => 'Telegram', 'x' => 'X (Twitter)'] as $val => $label)
+                                    <option value="{{ $val }}" {{ ($soc['platform'] ?? '') === $val ? 'selected' : '' }}>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            <input type="url" name="social_media[{{ $i }}][url]"
+                                   value="{{ $soc['url'] ?? '' }}"
+                                   placeholder="https://..."
+                                   class="form-input">
+                            <button type="button" class="remove-social-btn" title="Hapus">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    @endforeach
+                </div>
+
+                <button type="button" id="add-social-btn"
+                        class="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300">
+                    <i class="fas fa-plus-circle"></i> Tambah Sosial Media
+                </button>
+            </div>
+
+            {{-- ACTIONS --}}
+            <div class="flex flex-col sm:flex-row gap-2 justify-end">
+                <button type="button" data-profile-tab-jump="overview"
+                        class="px-5 py-2.5 rounded-xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-semibold transition">
+                    Batal
+                </button>
+                <button type="submit"
+                        class="px-6 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-700 text-white text-sm font-bold shadow-lg shadow-cyan-500/20 transition">
+                    <i class="fas fa-save mr-1.5"></i> Simpan Perubahan
+                </button>
+            </div>
         </form>
     </div>
+
+    {{-- ============================================================
+         TAB 3: KEAMANAN
+         ============================================================ --}}
+    <div data-profile-panel="security" class="hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+            {{-- PASSWORD --}}
+            <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+                <div class="flex items-start gap-4 mb-4">
+                    <div class="w-11 h-11 rounded-xl bg-red-500/15 text-red-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <div>
+                        <h2 class="font-bold text-sm text-gray-900 dark:text-white">Password</h2>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                            Minimal 8 karakter. Gunakan kombinasi huruf & angka.
+                        </p>
+                    </div>
+                </div>
+
+                <form action="{{ route('profile.update') }}" method="POST" class="space-y-3">
+                    @csrf
+                    @method('PATCH')
+
+                    <div>
+                        <label class="form-label" for="password">Password Baru</label>
+                        <input type="password" name="password" id="password"
+                               class="form-input @error('password') has-error @enderror"
+                               placeholder="••••••••">
+                        @error('password')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                    </div>
+
+                    <div>
+                        <label class="form-label" for="password_confirmation">Konfirmasi Password Baru</label>
+                        <input type="password" name="password_confirmation" id="password_confirmation"
+                               class="form-input"
+                               placeholder="••••••••">
+                    </div>
+
+                    {{-- Keep required fields (hidden) --}}
+                    <input type="hidden" name="name"  value="{{ $user->name }}">
+                    <input type="hidden" name="email" value="{{ $user->email }}">
+
+                    <button type="submit"
+                            class="w-full px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition">
+                        <i class="fas fa-key mr-1.5"></i> Ubah Password
+                    </button>
+                </form>
+            </div>
+
+            {{-- PIN --}}
+            @if ((int) $user->level_id === 1)
+                <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm">
+                    <div class="flex items-start gap-4 mb-4">
+                        <div class="w-11 h-11 rounded-xl bg-amber-500/15 text-amber-500 flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-bold text-sm text-gray-900 dark:text-white">PIN Keamanan</h2>
+                            <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                PIN 4–10 digit. Dipakai untuk verifikasi aksi sensitif.
+                            </p>
+                        </div>
+                    </div>
+
+                    <form action="{{ route('profile.update') }}" method="POST" class="space-y-3">
+                        @csrf
+                        @method('PATCH')
+
+                        <div>
+                            <label class="form-label" for="pin">PIN Baru</label>
+                            <input type="password" name="pin" id="pin" maxlength="10"
+                                   class="form-input @error('pin') has-error @enderror"
+                                   placeholder="••••••">
+                            @error('pin')<p class="text-xs text-red-500 mt-1">{{ $message }}</p>@enderror
+                        </div>
+
+                        <input type="hidden" name="name"  value="{{ $user->name }}">
+                        <input type="hidden" name="email" value="{{ $user->email }}">
+
+                        <button type="submit"
+                                class="w-full px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold transition">
+                            <i class="fas fa-shield-alt mr-1.5"></i> Ubah PIN
+                        </button>
+                    </form>
+                </div>
+            @endif
+
+            {{-- INFO TAMBAHAN --}}
+            <div class="lg:col-span-2 rounded-2xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/10 p-5">
+                <div class="flex items-start gap-4">
+                    <div class="w-10 h-10 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center flex-shrink-0">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="text-sm">
+                        <p class="font-semibold text-blue-800 dark:text-blue-200">Tips keamanan</p>
+                        <ul class="mt-1 text-xs text-blue-700/80 dark:text-blue-300/80 space-y-0.5 list-disc list-inside">
+                            <li>Gunakan password minimal 12 karakter dengan kombinasi huruf, angka, dan simbol.</li>
+                            <li>Jangan bagikan password atau PIN kepada siapa pun.</li>
+                            <li>Ubah password secara berkala, minimal setiap 3 bulan.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 
 @push('scripts')
 <script>
-    // Preview avatar
-    document.getElementById('avatar-input').addEventListener('change', function(e) {
-        const reader = new FileReader();
-        reader.onload = function(event) {
-            document.getElementById('avatar-preview').src = event.target.result;
-        };
-        reader.readAsDataURL(e.target.files[0]);
+document.addEventListener('DOMContentLoaded', function () {
+    const tabs   = document.querySelectorAll('[data-profile-tab]');
+    const panels = document.querySelectorAll('[data-profile-panel]');
+
+    function switchTab(name) {
+        tabs.forEach(t => t.classList.toggle('active', t.dataset.profileTab === name));
+        panels.forEach(p => p.classList.toggle('hidden', p.dataset.profilePanel !== name));
+        try { localStorage.setItem('owner_profile_tab', name); } catch (e) {}
+    }
+
+    tabs.forEach(t => {
+        t.addEventListener('click', () => switchTab(t.dataset.profileTab));
     });
 
-    // Tambah sosial media
-    document.getElementById('add-social-btn').addEventListener('click', function() {
-        const container = document.getElementById('social-media-container');
-        const index = container.querySelectorAll('.social-media-row').length;
+    // Tombol "Edit Data" di overview / "Batal" di form
+    document.querySelectorAll('[data-profile-tab-jump]').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.profileTabJump));
+    });
+
+    // Restore tab terakhir
+    try {
+        const saved = localStorage.getItem('owner_profile_tab');
+        if (saved && document.querySelector(`[data-profile-tab="${saved}"]`)) {
+            switchTab(saved);
+        }
+    } catch (e) {}
+
+    // ---- Avatar preview ----
+    const avatarInput = document.getElementById('avatar-input');
+    const avatarPreview = document.getElementById('avatar-preview');
+    if (avatarInput && avatarPreview) {
+        avatarInput.addEventListener('change', function (e) {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) {
+                alert('Ukuran file maksimal 2 MB.');
+                this.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = ev => avatarPreview.src = ev.target.result;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    // ---- Social media dinamis ----
+    const socialContainer = document.getElementById('social-media-container');
+    const addSocialBtn    = document.getElementById('add-social-btn');
+
+    function buildRow(index) {
         const row = document.createElement('div');
-        row.className = 'social-media-row mb-2';
+        row.className = 'social-row';
         row.innerHTML = `
-            <select name="social_media[${index}][platform]" class="rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-3 py-2 focus:ring-2 focus:ring-indigo-500">
+            <select name="social_media[${index}][platform]" class="form-input">
                 <option value="instagram">Instagram</option>
                 <option value="facebook">Facebook</option>
                 <option value="telegram">Telegram</option>
                 <option value="x">X (Twitter)</option>
             </select>
-            <input type="url" name="social_media[${index}][url]" placeholder="https://..." class="flex-1 rounded-lg border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white px-4 py-2 focus:ring-2 focus:ring-indigo-500">
-            <button type="button" class="remove-social-btn text-red-500 hover:text-red-700"><i class="fas fa-times"></i></button>
+            <input type="url" name="social_media[${index}][url]" placeholder="https://..." class="form-input">
+            <button type="button" class="remove-social-btn" title="Hapus"><i class="fas fa-times"></i></button>
         `;
-        container.appendChild(row);
-        row.querySelector('.remove-social-btn').addEventListener('click', function() {
-            row.remove();
-        });
-    });
+        return row;
+    }
 
-    // Hapus sosial media (existing)
-    document.querySelectorAll('.remove-social-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            this.closest('.social-media-row').remove();
+    function bindRemove(btn) {
+        btn.addEventListener('click', () => {
+            const row = btn.closest('.social-row');
+            if (socialContainer.querySelectorAll('.social-row').length > 1) {
+                row.remove();
+            } else {
+                // Reset row terakhir kalau cuma satu
+                row.querySelector('select').selectedIndex = 0;
+                row.querySelector('input').value = '';
+            }
         });
-    });
+    }
+
+    if (addSocialBtn && socialContainer) {
+        addSocialBtn.addEventListener('click', () => {
+            const idx = socialContainer.querySelectorAll('.social-row').length;
+            const row = buildRow(idx);
+            socialContainer.appendChild(row);
+            bindRemove(row.querySelector('.remove-social-btn'));
+        });
+
+        socialContainer.querySelectorAll('.remove-social-btn').forEach(bindRemove);
+    }
+});
 </script>
 @endpush
 @endsection

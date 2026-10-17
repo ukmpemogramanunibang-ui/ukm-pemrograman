@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 
 class AttendanceSession extends Model
@@ -12,37 +13,18 @@ class AttendanceSession extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'uuid',
-        'schedule_id',
-        'room_id',
-        'title',
-        'description',
-        'attendance_type',
-        'attendance_mode',
-        'scheduled_start_at',
-        'scheduled_end_at',
-        'attendance_open_at',
-        'attendance_close_at',
-        'session_end_at',
-        'grace_period_minutes',
-        'early_open_minutes',
-        'extension_minutes',
-        'session_status',
-        'allowed_methods',
-        'target_type',
-        'target_data',
-        'target_count',
-        'shift_name',
-        'shift_order',
-        'created_by',
-        'updated_by',
-        'started_at',
-        'opened_at',
-        'closed_at',
-        'extended_at',
-        'cancelled_at',
-        'cancel_reason',
-        'notes',
+        'uuid', 'schedule_id', 'room_id', 'title', 'description',
+        'attendance_type', 'attendance_mode',
+        'scheduled_start_at', 'scheduled_end_at',
+        'attendance_open_at', 'attendance_close_at', 'session_end_at',
+        'grace_period_minutes', 'early_open_minutes', 'extension_minutes',
+        'session_status', 'allowed_methods',
+        'target_type', 'target_data', 'target_count',
+        'shift_name', 'shift_order',
+        'created_by', 'updated_by',
+        'started_at', 'opened_at', 'closed_at', 'extended_at',
+        'cancelled_at', 'cancel_reason', 'notes',
+        'room_schedule_id', 'audience_type', 'audience_ids', 'attendance_mode', 'source',
     ];
 
     protected $casts = [
@@ -63,8 +45,12 @@ class AttendanceSession extends Model
         'early_open_minutes'   => 'integer',
         'extension_minutes'    => 'integer',
         'shift_order'          => 'integer',
+        'audience_ids' => 'array',
     ];
-
+public function roomSchedule()
+{
+    return $this->belongsTo(\App\Models\RoomSchedule::class, 'room_schedule_id');
+}
     protected static function booted(): void
     {
         static::creating(function ($m) {
@@ -80,12 +66,12 @@ class AttendanceSession extends Model
         });
     }
 
-    /* ══════════════════════════════════════════════════════════════
-     * RELATIONS
-     * ══════════════════════════════════════════════════════════════ */
+    /* ============================================================
+     | RELATIONS
+     * ============================================================ */
+
     public function schedule()
     {
-        // 🔥 FIX: gunakan RoomSchedule, bukan Schedule
         return $this->belongsTo(RoomSchedule::class, 'schedule_id');
     }
 
@@ -129,16 +115,29 @@ class AttendanceSession extends Model
         return $this->hasMany(AttendanceSessionChange::class, 'session_id');
     }
 
-    /* ══════════════════════════════════════════════════════════════
-     * SCOPES
-     * ══════════════════════════════════════════════════════════════ */
-    public function scopeActive($q)    { return $q->where('session_status', 'open'); }
-    public function scopeScheduled($q) { return $q->where('session_status', 'scheduled'); }
-    public function scopeToday($q)     { return $q->whereDate('scheduled_start_at', today()); }
+    /* ============================================================
+     | SCOPES
+     * ============================================================ */
 
-    /* ══════════════════════════════════════════════════════════════
-     * HELPERS
-     * ══════════════════════════════════════════════════════════════ */
+    public function scopeActive($q)
+    {
+        return $q->where('session_status', 'open');
+    }
+
+    public function scopeScheduled($q)
+    {
+        return $q->where('session_status', 'scheduled');
+    }
+
+    public function scopeToday($q)
+    {
+        return $q->whereDate('scheduled_start_at', today());
+    }
+
+    /* ============================================================
+     | HELPERS
+     * ============================================================ */
+
     public function isOpen(): bool
     {
         return $this->session_status === 'open';
@@ -161,7 +160,7 @@ class AttendanceSession extends Model
 
     public function canBeOpenedNow(): bool
     {
-        if (!$this->attendance_open_at || !$this->attendance_close_at) return false;
+        if (! $this->attendance_open_at || ! $this->attendance_close_at) return false;
         return now()->gte($this->attendance_open_at) && now()->lt($this->attendance_close_at);
     }
 
@@ -170,16 +169,10 @@ class AttendanceSession extends Model
         return $this->attendance_close_at && now()->gte($this->attendance_close_at);
     }
 
-    /* ══════════════════════════════════════════════════════════════
-     * TARGET DATA ACCESSORS
-     * `target_data` adalah JSON dengan struktur:
-     * {
-     *   "roles": ["owner","pengurus"],
-     *   "groups": [1,2,3],
-     *   "divisions": [5],
-     *   "generations": [2]
-     * }
-     * ══════════════════════════════════════════════════════════════ */
+    /* ============================================================
+     | TARGET DATA ACCESSORS
+     * ============================================================ */
+
     public function getTargetRolesAttribute(): array
     {
         return $this->target_data['roles'] ?? [];
@@ -200,9 +193,10 @@ class AttendanceSession extends Model
         return $this->target_data['generations'] ?? [];
     }
 
-    /* ══════════════════════════════════════════════════════════════
-     * STATS
-     * ══════════════════════════════════════════════════════════════ */
+    /* ============================================================
+     | STATS
+     * ============================================================ */
+
     public function computeStats(): array
     {
         $records = $this->relationLoaded('records')
@@ -222,18 +216,18 @@ class AttendanceSession extends Model
         $percentage = $target > 0 ? min(100, round(($hadir / $target) * 100)) : 0;
 
         return [
-    'target'       => $target,
-    'hadir'        => $hadir,
-    'tepat'        => $tepat,           // alias lama
-    'tepat_waktu'  => $tepat,           // alias baru (untuk kompatibilitas)
-    'terlambat'    => $terlambat,
-    'izin'         => $izin,
-    'bolos'        => $bolos,
-    'pending'      => $pending,
-    'belum'        => $belum,
-    'percentage'   => $percentage,
-    'total_record' => $records->count(),
-];
+            'target'       => $target,
+            'hadir'        => $hadir,
+            'tepat'        => $tepat,
+            'tepat_waktu'  => $tepat,
+            'terlambat'    => $terlambat,
+            'izin'         => $izin,
+            'bolos'        => $bolos,
+            'pending'      => $pending,
+            'belum'        => $belum,
+            'percentage'   => $percentage,
+            'total_record' => $records->count(),
+        ];
     }
 
     public function getStatsAttribute(): array
@@ -241,9 +235,10 @@ class AttendanceSession extends Model
         return $this->computeStats();
     }
 
-    /* ══════════════════════════════════════════════════════════════
-     * STATUS ACCESSORS
-     * ══════════════════════════════════════════════════════════════ */
+    /* ============================================================
+     | STATUS ACCESSORS
+     * ============================================================ */
+
     public function getStatusColorAttribute(): string
     {
         return match ($this->session_status) {
@@ -267,7 +262,7 @@ class AttendanceSession extends Model
 
         $now = now();
 
-        if (!$this->attendance_open_at || !$this->attendance_close_at) {
+        if (! $this->attendance_open_at || ! $this->attendance_close_at) {
             return 'unscheduled';
         }
 
@@ -307,21 +302,22 @@ class AttendanceSession extends Model
 
     public function getMinutesUntilOpenAttribute(): ?int
     {
-        if (!$this->attendance_open_at) return null;
+        if (! $this->attendance_open_at) return null;
         $diff = now()->diffInMinutes($this->attendance_open_at, false);
         return $diff > 0 ? $diff : null;
     }
 
     public function getMinutesUntilCloseAttribute(): ?int
     {
-        if (!$this->attendance_close_at) return null;
+        if (! $this->attendance_close_at) return null;
         $diff = now()->diffInMinutes($this->attendance_close_at, false);
         return $diff > 0 ? $diff : null;
     }
 
-    /* ══════════════════════════════════════════════════════════════
-     * ALERTS
-     * ══════════════════════════════════════════════════════════════ */
+    /* ============================================================
+     | ALERTS
+     * ============================================================ */
+
     public function needsAttention(): array
     {
         $reasons = [];
@@ -389,5 +385,39 @@ class AttendanceSession extends Model
         }
 
         return $reasons;
+    }
+
+    /* ============================================================
+     | NOTIFICATION INTEGRATION
+     * ============================================================ */
+
+    /**
+     * Siapa saja yang menerima notifikasi sesi absensi?
+     * Default: owner (1) + ketua (3) + pengurus (4)
+     */
+    public function notificationRecipients(): array
+    {
+        return \App\Models\User::query()
+            ->whereIn('level_id', [1, 3, 4])
+            ->where('is_active', true)
+            ->get()
+            ->all();
+    }
+
+    /**
+     * Payload default kalau observer tidak menyuplai.
+     */
+    public function toNotificationPayload(): array
+    {
+        return [
+            'title'      => '📋 Sesi Absensi: ' . ($this->title ?? '-'),
+            'message'    => 'Status: ' . ($this->session_status ?? 'unknown'),
+            'source'     => 'attendance',
+            'priority'   => $this->session_status === 'open' ? 'high' : 'normal',
+            'action_url' => Route::has('owner.attendance.show')
+                ? route('owner.attendance.show', $this->id)
+                : null,
+            'status'     => $this->session_status,
+        ];
     }
 }

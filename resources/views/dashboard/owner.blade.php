@@ -166,4 +166,7 @@
         </div>
     </div>
 </div>
+
+{{-- ============ FOLDER SHORTCUT ============ --}}
+@include('partials.dashboard.builder', ['dashboardData' => $dashboardData ?? ['cards' => collect(), 'hidden_cards' => collect(), 'is_owner' => true]])
 @endsection

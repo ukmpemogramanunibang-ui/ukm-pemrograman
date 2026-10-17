@@ -15,6 +15,8 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use App\Services\RoomBookingClassifier;
+use App\Services\RoomStatusService;
 
 class RoomController extends Controller
 {
@@ -238,13 +240,147 @@ class RoomController extends Controller
     // ============================================================
     // SHOW – Detail Ruangan
     // ============================================================
-    public function show(Room $room)
-    {
-        $room->load(['facilities', 'schedules', 'bookings' => function ($q) {
-            $q->orderBy('start_datetime', 'desc')->limit(10);
-        }]);
-        return view('owner.rooms.show', compact('room'));
+// ============================================================
+// SHOW – Room Command Detail
+// ============================================================
+public function show(Room $room)
+{
+    $room->load(['facilities']);
+    $room->loadCount(['schedules', 'bookings']);
+
+    // Jadwal terbaru (5)
+    $schedules = $room->schedules()
+        ->orderByDesc('start_datetime')
+        ->limit(5)
+        ->get();
+
+    // Booking terbaru (5) + relasi ringan
+    $bookings = $room->bookings()
+        ->with(['approver:id,name'])
+        ->orderByDesc('start_datetime')
+        ->limit(5)
+        ->get();
+
+    // Next schedule
+    $nextSchedule = $room->schedules()
+        ->where('start_datetime', '>=', now())
+        ->orderBy('start_datetime')
+        ->first();
+
+    // Next approved booking
+    $nextBooking = $room->bookings()
+        ->where('status', 'Disetujui')
+        ->where('start_datetime', '>=', now())
+        ->orderBy('start_datetime')
+        ->first();
+
+    // Status prioritas: Unavailable > Maintenance > Occupied > Booked > Available
+    $statusInfo = $this->resolveRoomStatus($room, $nextBooking);
+
+    // QR valid
+    $qrValid = false;
+    try {
+        $qrService = app(\App\Services\QrCodeService::class);
+        $qrValid = method_exists($qrService, 'isQrValid')
+            ? (bool) $qrService->isQrValid($room)
+            : ($room->has_qr && $room->qr_code && Storage::disk('public')->exists($room->qr_code));
+    } catch (\Throwable $e) {
+        $qrValid = $room->has_qr && $room->qr_code && Storage::disk('public')->exists($room->qr_code);
     }
+
+    return view('owner.rooms.show', compact(
+        'room', 'schedules', 'bookings',
+        'nextSchedule', 'nextBooking', 'statusInfo', 'qrValid'
+    ));
+}
+
+// ============================================================
+// STATUS RESOLVER — prioritas kondisi ruangan
+// ============================================================
+protected function resolveRoomStatus(Room $room, $nextBooking = null): array
+{
+    $status    = $room->status;
+    $condition = $room->condition;
+
+    // 1. Tidak tersedia
+    if ($condition === 'Rusak' || in_array($status, ['Dinonaktifkan', 'Ditutup'], true)) {
+        return [
+            'key'   => 'unavailable',
+            'label' => 'Tidak Tersedia',
+            'tone'  => 'red',
+            'note'  => 'Ruangan tidak dapat digunakan.',
+        ];
+    }
+
+    // 2. Maintenance
+    if ($status === 'Maintenance' || $condition === 'Renovasi') {
+        return [
+            'key'   => 'maintenance',
+            'label' => 'Maintenance',
+            'tone'  => 'orange',
+            'note'  => 'Sedang dalam perawatan.',
+        ];
+    }
+
+    // 3. Sedang digunakan
+    if ($status === 'Sedang Digunakan') {
+        $until = $room->bookings()
+            ->where('status', 'Disetujui')
+            ->where('start_datetime', '<=', now())
+            ->where('end_datetime', '>=', now())
+            ->orderByDesc('end_datetime')
+            ->value('end_datetime');
+
+        return [
+            'key'   => 'occupied',
+            'label' => 'Sedang Digunakan',
+            'tone'  => 'blue',
+            'note'  => $until
+                ? 'Hingga ' . \Carbon\Carbon::parse($until)->format('H:i')
+                : 'Sedang berlangsung.',
+        ];
+    }
+
+    // 4. Dipesan (dalam 2 jam ke depan)
+    if ($status === 'Dipesan' || ($nextBooking &&
+        \Carbon\Carbon::parse($nextBooking->start_datetime)->diffInHours(now()) <= 2)) {
+        return [
+            'key'   => 'booked',
+            'label' => 'Dipesan',
+            'tone'  => 'yellow',
+            'note'  => $nextBooking
+                ? 'Mulai ' . \Carbon\Carbon::parse($nextBooking->start_datetime)->format('H:i')
+                : 'Ada jadwal mendatang.',
+        ];
+    }
+
+    // 5. Default
+    return [
+        'key'   => 'available',
+        'label' => 'Tersedia',
+        'tone'  => 'emerald',
+        'note'  => 'Siap digunakan.',
+    ];
+}
+
+// ============================================================
+// PRIVATE DOCUMENT DOWNLOAD — cek whitelist
+// ============================================================
+public function downloadDocument(Room $room, string $filename)
+{
+    $documents = is_array($room->documents) ? $room->documents : [];
+    $decoded   = urldecode($filename);
+
+    if (! in_array($decoded, $documents, true)) {
+        abort(404, 'Dokumen tidak ditemukan.');
+    }
+
+    if (! Storage::disk('public')->exists($decoded)) {
+        abort(404, 'File tidak tersedia.');
+    }
+
+    return Storage::disk('public')->download($decoded, basename($decoded));
+}
 
     // ============================================================
     // EDIT – Form Edit Ruangan
@@ -259,37 +395,99 @@ class RoomController extends Controller
     // UPDATE – Update Ruangan
     // ============================================================
     public function update(Request $request, Room $room)
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'category' => 'nullable|string|max:100',
-            'description' => 'nullable|string',
-            'building' => 'required|string|max:100',
-            'floor' => 'required|string|max:50',
-            'address' => 'nullable|string|max:500',
-            'capacity_normal' => 'required|integer|min:1',
-            'capacity_max' => 'nullable|integer|min:0',
-            'status' => ['required', Rule::in(['Tersedia', 'Sedang Dibangun', 'Direnovasi', 'Maintenance', 'Sedang Digunakan', 'Dipesan', 'Menunggu Approval', 'Ditutup', 'Dinonaktifkan'])],
-            'condition' => ['required', Rule::in(['Baik', 'Perlu Perbaikan', 'Rusak', 'Renovasi', 'Bersih'])],
-            'responsible_person' => 'nullable|string|max:255',
-            'responsible_phone' => 'nullable|string|max:20',
-            'operational_hours' => 'nullable|array',
-            'operational_hours.*' => 'nullable|string|max:20',
-            'has_qr' => 'nullable|boolean',
-        ]);
+{
+    $validated = $request->validate([
+        'name' => 'required|string|max:255|unique:rooms,name,' . $room->id,
+        'category' => 'nullable|string|max:100',
+        'description' => 'nullable|string|max:1000',
+        'building' => 'required|string|max:100',
+        'floor' => 'required|string|max:50',
+        'address' => 'nullable|string|max:500',
+        'capacity_normal' => 'required|integer|min:1|max:9999',
+        'capacity_max' => 'nullable|integer|min:0|max:9999',
+        'status' => ['required', Rule::in(['Tersedia','Sedang Digunakan','Sedang Dibangun','Direnovasi','Maintenance','Dipesan','Menunggu Approval','Ditutup','Dinonaktifkan'])],
+        'condition' => ['required', Rule::in(['Baik','Perlu Perbaikan','Rusak','Renovasi','Bersih'])],
+        'responsible_person' => 'nullable|string|max:255',
+        'responsible_phone' => 'nullable|string|max:20',
+        'has_qr' => 'nullable|boolean',
+        'images' => 'nullable|array|max:5',
+        'images.*' => 'nullable|file|mimes:jpeg,png,jpg,webp|max:10240',
+        'documents' => 'nullable|array|max:2',
+        'documents.*' => 'nullable|file|mimes:pdf,doc,docx,xlsx|max:10240',
+    ]);
 
-        // Update operational hours jika ada
-        if ($request->has('operational_hours')) {
-            $room->operational_hours = $request->operational_hours;
+    // Format operational hours
+    $operationalHours = [];
+    if ($request->has('operational_days')) {
+        foreach ($request->operational_days as $day) {
+            $start = $request->input("operational_hours.$day", '08:00');
+            $end   = $request->input("operational_hours_end.$day", '20:00');
+            $operationalHours[$day] = $start . '-' . $end;
         }
+    }
+    $validated['operational_hours'] = $operationalHours;
+    $validated['has_qr'] = $request->boolean('has_qr');
 
-        $room->update($validated);
-        return redirect()->route('owner.rooms.index')->with('success', '✅ Ruangan berhasil diupdate.');
+    // Upload gambar baru
+    if ($request->hasFile('images')) {
+        $paths = is_array($room->images) ? $room->images : [];
+        foreach ($request->file('images') as $img) {
+            $paths[] = $img->store('rooms/images', 'public');
+        }
+        $validated['images'] = $paths;
     }
 
-    // ============================================================
-    // DESTROY – Arsipkan Ruangan (Soft Delete)
-    // ============================================================
+    // Upload dokumen baru
+    if ($request->hasFile('documents')) {
+        $paths = is_array($room->documents) ? $room->documents : [];
+        foreach ($request->file('documents') as $doc) {
+            $paths[] = $doc->store('rooms/documents', 'public');
+        }
+        $validated['documents'] = $paths;
+    }
+
+    DB::beginTransaction();
+    try {
+        $room->update($validated);
+
+        // Update fasilitas: hapus dulu, lalu insert ulang
+        if ($request->has('facilities')) {
+            $room->facilities()->delete();
+            foreach ($request->facilities as $fac) {
+                if (!empty($fac['name'])) {
+                    RoomFacility::create([
+                        'room_id'   => $room->id,
+                        'name'      => trim($fac['name']),
+                        'quantity'  => $fac['quantity'] ?? 1,
+                        'condition' => 'Baik',
+                    ]);
+                }
+            }
+        }
+
+        // Generate QR jika diaktifkan dan belum ada
+        if ($room->has_qr && !$room->qr_code) {
+            try {
+                $qrService = app(QrCodeService::class);
+                $qrPath = $qrService->generateForRoom($room);
+                if ($qrPath) $room->update(['qr_code' => $qrPath]);
+            } catch (\Exception $e) {
+                Log::error('QR generate error: ' . $e->getMessage());
+            }
+        }
+
+        DB::commit();
+
+        return redirect()
+            ->route('owner.rooms.show', $room)
+            ->with('success', "✅ Ruangan <strong>{$room->name}</strong> berhasil diupdate!");
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('Room update failed: ' . $e->getMessage());
+        return back()->with('error', '❌ Gagal mengupdate ruangan: ' . $e->getMessage())->withInput();
+    }
+}
     public function destroy(Room $room)
     {
         $room->delete();
@@ -299,18 +497,90 @@ class RoomController extends Controller
     // ============================================================
     // CALENDAR – Kalender Booking
     // ============================================================
-    public function calendar()
-    {
-        $start = now()->startOfMonth();
-        $end = now()->endOfMonth();
-        $bookings = Booking::with('room')
-            ->where('status', 'Disetujui')
-            ->whereBetween('start_datetime', [$start, $end])
-            ->get()
-            ->groupBy(fn($b) => $b->start_datetime->format('Y-m-d'));
-
-        return view('owner.rooms.calendar', compact('bookings'));
+public function calendar(Request $request, RoomBookingClassifier $classifier)
+{
+    // ---- View mode ----
+    $view = $request->query('view', 'month');
+    if (!in_array($view, ['month', 'week', 'day', 'agenda'], true)) {
+        $view = 'month';
     }
+
+    // ---- Month / Year ----
+    $month = (int) $request->query('month', now()->month);
+    $year  = (int) $request->query('year', now()->year);
+    $month = max(1, min(12, $month));
+    $year  = max(2000, min(2100, $year));
+
+    $cursor = \Carbon\Carbon::create($year, $month, 1);
+
+    // ---- Rentang waktu berdasarkan view ----
+    if ($view === 'day') {
+        $rangeStart = $cursor->copy();
+        $rangeEnd   = $cursor->copy()->endOfDay();
+    } elseif ($view === 'week') {
+        $rangeStart = $cursor->copy()->startOfMonth()->startOfWeek(\Carbon\WeekDay::Monday);
+        $rangeEnd   = $rangeStart->copy()->addDays(6)->endOfDay();
+    } elseif ($view === 'agenda') {
+        $rangeStart = $cursor->copy()->startOfMonth();
+        $rangeEnd   = $cursor->copy()->addMonths(3)->endOfMonth();
+    } else {
+        $rangeStart = $cursor->copy()->startOfMonth();
+        $rangeEnd   = $cursor->copy()->endOfMonth();
+    }
+
+    // ---- Query ----
+    $query = Booking::with(['room'])
+        ->whereBetween('start_datetime', [$rangeStart, $rangeEnd]);
+
+    if ($request->filled('building')) {
+        $query->whereHas('room', fn ($q) => $q->where('building', $request->building));
+    }
+    if ($request->filled('room_id')) {
+        $query->where('room_id', (int) $request->room_id);
+    }
+    if ($request->filled('status')) {
+        $query->where('status', $request->status);
+    }
+    if ($request->filled('q')) {
+        $q = $request->q;
+        $query->where(fn ($qq) => $qq
+            ->where('title', 'like', "%{$q}%")
+            ->orWhere('requester_name', 'like', "%{$q}%"));
+    }
+
+    $bookings = $query->orderBy('start_datetime')->get();
+
+    // ---- Klasifikasi sekali di service ----
+    $classified = $classifier->classifyMany($bookings);
+    $conflicts  = $classifier->detectConflicts($bookings);
+
+    // ---- Group per hari untuk kalender ----
+    $bookingsByDay = $bookings->groupBy(fn ($b) =>
+        optional($b->start_datetime)->format('Y-m-d')
+    );
+
+    // ---- Data pendukung untuk filter ----
+    $buildings = Room::query()->select('building')->distinct()
+        ->whereNotNull('building')->orderBy('building')->pluck('building');
+    $rooms = Room::query()->orderBy('name')->get(['id','name','room_code','building','floor']);
+
+    return view('owner.rooms.calendar', [
+        'view'          => $view,
+        'month'         => $month,
+        'year'          => $year,
+        'cursor'        => $cursor,
+        'rangeStart'    => $rangeStart,
+        'rangeEnd'      => $rangeEnd,
+        'bookings'      => $bookings,
+        'bookingsByDay' => $bookingsByDay,
+        'classified'    => $classified,
+        'conflicts'     => $conflicts,
+        'buildings'     => $buildings,
+        'rooms'         => $rooms,
+        'classifier'    => $classifier,
+    ]);
+}
+
 
     // ============================================================
     // BOOKING – Ajukan Booking
@@ -347,13 +617,14 @@ class RoomController extends Controller
     // REQUESTS – Daftar Permintaan Booking
     // ============================================================
     public function requests()
-    {
-        $pendingBookings = Booking::with(['room', 'requester'])
-            ->where('status', 'Menunggu Persetujuan')
-            ->orderBy('created_at', 'asc')
-            ->paginate(15);
-        return view('owner.rooms.requests', compact('pendingBookings'));
-    }
+{
+    $pendingBookings = Booking::with('room')             // ✅ hapus 'requester'
+        ->where('status', 'Menunggu Persetujuan')
+        ->orderBy('created_at', 'asc')
+        ->paginate(15);
+
+    return view('owner.rooms.requests', compact('pendingBookings'));
+}
 
     public function approveBooking(Booking $booking)
     {
@@ -456,14 +727,24 @@ public function bookingCreate(Room $room)
 
     // Pastikan selalu array
     $allImages = is_array($room->images) ? $room->images : [];
-    
+
     foreach ($room->schedules as $schedule) {
-        $scheduleImages = is_array($schedule->images) ? $schedule->images : json_decode($schedule->images, true);
+        // ✅ Akses images secara aman
+        $rawImages = $schedule->getAttributes()['images'] ?? null;
+
+        if (is_array($rawImages)) {
+            $scheduleImages = $rawImages;
+        } elseif (is_string($rawImages) && $rawImages !== '') {
+            $scheduleImages = json_decode($rawImages, true) ?: [];
+        } else {
+            $scheduleImages = [];
+        }
+
         if (is_array($scheduleImages)) {
             $allImages = array_merge($allImages, $scheduleImages);
         }
     }
-    // Hilangkan duplikat dan reset index
+
     $allImages = array_values(array_unique($allImages));
 
     return view('owner.rooms.booking-create', compact('room', 'allImages'));

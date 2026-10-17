@@ -1,5 +1,5 @@
 {{-- Footer Owner --}}
-<footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-2 md:py-3 px-3 md:px-6 text-center text-[10px] md:text-xs text-gray-500 dark:text-gray-400 safe-bottom">
+<footer class="flex-shrink-0 bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-2 md:py-3 px-3 md:px-6 text-center text-[10px] md:text-xs text-gray-500 dark:text-gray-400 safe-bottom">
     <div class="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2">
         <span>&copy; {{ date('Y') }} <span class="font-semibold text-cyan-600 dark:text-cyan-400">UNICODE</span> – UKM Pemrograman</span>
         <span class="hidden md:inline text-gray-300 dark:text-gray-600">|</span>

@@ -246,7 +246,8 @@
     <div class="flex h-screen overflow-hidden">
 
         {{-- ===== SIDEBAR ===== --}}
-        @include('partials.roles.owner.sidebar')
+       @include('components.notification-bell', ['unreadCount' => auth()->user()->unreadNotifications()->count()])
+
 
         {{-- ===== MAIN CONTENT ===== --}}
         <div class="flex-1 flex flex-col overflow-hidden min-w-0">

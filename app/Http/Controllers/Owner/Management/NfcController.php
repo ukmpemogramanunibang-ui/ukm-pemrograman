@@ -543,7 +543,7 @@ public function assignIdentifier(Request $request, NfcCredential $nfc)
     /* ========================================================================
      | VALIDATE — validasi NFC (dual-mode: UUID v4 + UID fisik)
      | ===================================================================== */
-  public function validate(Request $request)
+  public function validateNfc(Request $request)
 {
     $startTime = microtime(true);
 

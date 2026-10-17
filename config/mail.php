@@ -50,6 +50,14 @@ return [
     // ⬇️ Tambahkan dua baris berikut ⬇️
     'encryption' => env('MAIL_ENCRYPTION', 'tls'),
     'verify_peer' => env('MAIL_VERIFY_PEER', true),
+     // ✅ Tambah ini — KHUSUS DEVELOPMENT
+    'stream' => [
+        'ssl' => [
+            'verify_peer'       => false,
+            'verify_peer_name'  => false,
+            'allow_self_signed' => true,
+        ],
+    ],
 ],
 
         'ses' => [

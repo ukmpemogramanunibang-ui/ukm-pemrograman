@@ -1,36 +1,92 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Notification;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class LoginHistory extends Model
 {
-    /** @use HasFactory<\Database\Factories\LoginHistoryFactory> */
     use HasFactory;
-    
-}
-Notification::create([
-    'user_id' => $receiver->id,  // user yang akan menerima
-    'type'    => 'info',
-    'title'   => 'Pesan Chat Baru',
-    'message' => $sender->name . ' mengirim pesan kepada Anda.',
-    'icon'    => 'fas fa-comments',
-    'link'    => route('owner.chats.private', $sender->user_uuid),
-    'data'    => json_encode(['sender_id' => $sender->id]),
-]);
 
-// Contoh: setelah pengumuman dibuat (broadcast ke semua user aktif)
-$users = User::where('is_active', true)->get();
-foreach ($users as $user) {
-    Notification::create([
-        'user_id' => $user->id,
-        'type'    => 'success',
-        'title'   => 'Pengumuman Baru',
-        'message' => $announcement->judul,
-        'icon'    => 'fas fa-bullhorn',
-        'link'    => route('owner.announcements.show', $announcement->id),
-    ]);
+    protected $table = 'login_histories';
+
+    protected $fillable = [
+        'user_id',
+        'ip_address',
+        'user_agent',
+        'device_type',
+        'device_name',
+        'browser',
+        'platform',
+        'country',
+        'city',
+        'login_at',
+        'logout_at',
+        'status',
+        'failure_reason',
+        'session_id',
+        'is_suspicious',
+    ];
+
+    protected $casts = [
+        'login_at'      => 'datetime',
+        'logout_at'     => 'datetime',
+        'is_suspicious' => 'boolean',
+    ];
+
+    /* =========================================================
+     | RELATIONS
+     ========================================================= */
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /* =========================================================
+     | SCOPES
+     ========================================================= */
+
+    public function scopeSuccessful($q)
+    {
+        return $q->where('status', 'success');
+    }
+
+    public function scopeFailed($q)
+    {
+        return $q->where('status', 'failed');
+    }
+
+    public function scopeRecent($q, int $days = 7)
+    {
+        return $q->where('login_at', '>=', now()->subDays($days));
+    }
+
+    public function scopeSuspicious($q)
+    {
+        return $q->where('is_suspicious', true);
+    }
+
+    /* =========================================================
+     | ACCESSORS
+     ========================================================= */
+
+    public function getDeviceLabelAttribute(): string
+    {
+        return trim(
+            ($this->device_name ?? $this->device_type ?? 'Unknown') .
+            ($this->platform ? " • {$this->platform}" : '')
+        );
+    }
+
+    public function getLocationLabelAttribute(): string
+    {
+        return collect([$this->city, $this->country])
+            ->filter()
+            ->implode(', ') ?: 'Tidak diketahui';
+    }
 }

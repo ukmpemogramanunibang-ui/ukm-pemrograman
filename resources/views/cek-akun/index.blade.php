@@ -31,52 +31,32 @@
 
         {{-- METHOD SELECTION --}}
         <section class="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
-
             {{-- MANUAL --}}
             <a href="{{ route('account.check.manual') }}" class="method-card glass-panel rounded-3xl p-7 block">
-                <div class="method-icon bg-blue-500/10 text-blue-300">
-                    <i class="fa-solid fa-keyboard"></i>
-                </div>
+                <div class="method-icon bg-blue-500/10 text-blue-300"><i class="fa-solid fa-keyboard"></i></div>
                 <div class="text-xs uppercase tracking-widest text-blue-300/70 font-bold mb-1">Method 01</div>
                 <h2 class="text-xl font-black text-white mb-2">Manual</h2>
-                <p class="text-sm text-slate-400 leading-6 mb-5">
-                    Masukkan NIM, Member Number, atau UUID secara manual untuk memeriksa akun.
-                </p>
-                <div class="inline-flex items-center gap-2 text-cyan-300 text-sm font-bold">
-                    Buka Manual <i class="fa-solid fa-arrow-right"></i>
-                </div>
+                <p class="text-sm text-slate-400 leading-6 mb-5">Masukkan NIM, Member Number, atau UUID secara manual.</p>
+                <div class="inline-flex items-center gap-2 text-cyan-300 text-sm font-bold">Buka Manual <i class="fa-solid fa-arrow-right"></i></div>
             </a>
 
-            {{-- BARCODE / QR --}}
+            {{-- QR --}}
             <a href="{{ route('account.check.qr') }}" class="method-card glass-panel rounded-3xl p-7 block">
-                <div class="method-icon bg-cyan-500/10 text-cyan-300">
-                    <i class="fa-solid fa-qrcode"></i>
-                </div>
+                <div class="method-icon bg-cyan-500/10 text-cyan-300"><i class="fa-solid fa-qrcode"></i></div>
                 <div class="text-xs uppercase tracking-widest text-cyan-300/70 font-bold mb-1">Method 02</div>
                 <h2 class="text-xl font-black text-white mb-2">Barcode / QR</h2>
-                <p class="text-sm text-slate-400 leading-6 mb-5">
-                    Scan barcode/QR dengan kamera, upload gambar, atau masukkan UID secara manual.
-                </p>
-                <div class="inline-flex items-center gap-2 text-cyan-300 text-sm font-bold">
-                    Buka Barcode / QR <i class="fa-solid fa-arrow-right"></i>
-                </div>
+                <p class="text-sm text-slate-400 leading-6 mb-5">Scan barcode/QR, upload gambar, atau input UID manual.</p>
+                <div class="inline-flex items-center gap-2 text-cyan-300 text-sm font-bold">Buka QR <i class="fa-solid fa-arrow-right"></i></div>
             </a>
 
             {{-- NFC --}}
             <a href="{{ route('account.check.nfc') }}" class="method-card glass-panel rounded-3xl p-7 block">
-                <div class="method-icon bg-violet-500/10 text-violet-300">
-                    <i class="fa-solid fa-wifi"></i>
-                </div>
+                <div class="method-icon bg-violet-500/10 text-violet-300"><i class="fa-solid fa-wifi"></i></div>
                 <div class="text-xs uppercase tracking-widest text-violet-300/70 font-bold mb-1">Method 03</div>
                 <h2 class="text-xl font-black text-white mb-2">NFC</h2>
-                <p class="text-sm text-slate-400 leading-6 mb-5">
-                    Tap kartu NFC ke ponsel atau masukkan UID NFC secara manual.
-                </p>
-                <div class="inline-flex items-center gap-2 text-cyan-300 text-sm font-bold">
-                    Buka NFC <i class="fa-solid fa-arrow-right"></i>
-                </div>
+                <p class="text-sm text-slate-400 leading-6 mb-5">Tap kartu NFC ke ponsel atau masukkan UID NFC manual.</p>
+                <div class="inline-flex items-center gap-2 text-cyan-300 text-sm font-bold">Buka NFC <i class="fa-solid fa-arrow-right"></i></div>
             </a>
-
         </section>
 
         {{-- INFO FOOTER --}}
@@ -84,15 +64,15 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                 <div class="smart-line pl-3">
                     <div class="text-white font-bold">Smart Resolver</div>
-                    <p class="text-slate-500 text-xs mt-1 leading-5">Semua metode memakai satu mesin pencarian agar hasil konsisten.</p>
+                    <p class="text-slate-500 text-xs mt-1 leading-5">Semua metode memakai satu mesin pencarian.</p>
                 </div>
                 <div class="smart-line pl-3">
                     <div class="text-white font-bold">Anti-Enumerasi</div>
-                    <p class="text-slate-500 text-xs mt-1 leading-5">Sistem memakai exact identifier, tidak pencarian nama bebas.</p>
+                    <p class="text-slate-500 text-xs mt-1 leading-5">Sistem memakai exact identifier.</p>
                 </div>
                 <div class="smart-line pl-3">
                     <div class="text-white font-bold">Tanpa Login</div>
-                    <p class="text-slate-500 text-xs mt-1 leading-5">Dirancang untuk pengecekan identitas tanpa autentikasi.</p>
+                    <p class="text-slate-500 text-xs mt-1 leading-5">Dirancang tanpa autentikasi.</p>
                 </div>
             </div>
         </section>

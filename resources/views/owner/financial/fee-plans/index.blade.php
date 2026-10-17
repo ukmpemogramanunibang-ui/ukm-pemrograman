@@ -4,50 +4,60 @@
 
 @section('content')
 <div class="p-4 md:p-6">
-    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+
+    {{-- ============== BREADCRUMB ============== --}}
+    <nav class="flex items-center text-xs text-gray-500 dark:text-gray-400 mb-3" aria-label="Breadcrumb">
+        <a href="{{ route('owner.financial.dashboard') }}" class="hover:text-blue-600 dark:hover:text-blue-400 flex items-center gap-1">
+            <i class="fas fa-home"></i> Keuangan
+        </a>
+        <i class="fas fa-chevron-right mx-2 text-gray-400"></i>
+        <span class="text-gray-700 dark:text-gray-200 font-medium">Skema Biaya</span>
+    </nav>
+
+    {{-- ============== SUBMENU KEUANGAN ============== --}}
+    @include('owner.financial._partials.submenu', ['active' => 'fee-plans'])
+
+    {{-- ============== HEADER ============== --}}
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6 mt-4">
         <div>
             <h1 class="text-2xl font-bold text-gray-800 dark:text-white">Skema Biaya</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400">Kelola semua skema pembayaran UKM</p>
         </div>
         <div class="mt-3 md:mt-0 flex flex-wrap gap-2">
-            <a href="{{ route('owner.financial.fee-plans.create') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
+            <a href="{{ route('owner.financial.fee-plans.create') }}"
+               class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
                 <i class="fas fa-plus"></i> Tambah Skema
             </a>
-            <a href="#" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
+            <a href="#"
+               class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 transition">
                 <i class="fas fa-file-import"></i> Import Historis
             </a>
         </div>
     </div>
 
+    {{-- ============== ALERT (HANYA SEKALI) ============== --}}
     @if(session('success'))
-    <div class="bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-        <span>{{ session('success') }}</span>
-        <button onclick="this.parentElement.remove()" class="text-green-700 dark:text-green-400">&times;</button>
-    </div>
-@endif
-
-@if(session('error'))
-    <div class="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-        <span>{{ session('error') }}</span>
-        <button onclick="this.parentElement.remove()" class="text-red-700 dark:text-red-400">&times;</button>
-    </div>
-@endif
-
-@if(session('info'))
-    <div class="bg-blue-100 dark:bg-blue-900/30 border border-blue-400 dark:border-blue-700 text-blue-700 dark:text-blue-400 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-        <span>{{ session('info') }}</span>
-        <button onclick="this.parentElement.remove()" class="text-blue-700 dark:text-blue-400">&times;</button>
-    </div>
-@endif
+        <div class="bg-green-100 dark:bg-green-900/30 border border-green-400 dark:border-green-700 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
+            <span><i class="fas fa-check-circle mr-2"></i>{{ session('success') }}</span>
+            <button onclick="this.parentElement.remove()" class="text-green-700 dark:text-green-400">&times;</button>
+        </div>
+    @endif
 
     @if(session('error'))
         <div class="bg-red-100 dark:bg-red-900/30 border border-red-400 dark:border-red-700 text-red-700 dark:text-red-400 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
-            <span>{{ session('error') }}</span>
+            <span><i class="fas fa-exclamation-circle mr-2"></i>{{ session('error') }}</span>
             <button onclick="this.parentElement.remove()" class="text-red-700 dark:text-red-400">&times;</button>
         </div>
     @endif
 
-    <!-- Filter -->
+    @if(session('info'))
+        <div class="bg-blue-100 dark:bg-blue-900/30 border border-blue-400 dark:border-blue-700 text-blue-700 dark:text-blue-400 px-4 py-3 rounded-lg mb-4 flex items-center justify-between">
+            <span><i class="fas fa-info-circle mr-2"></i>{{ session('info') }}</span>
+            <button onclick="this.parentElement.remove()" class="text-blue-700 dark:text-blue-400">&times;</button>
+        </div>
+    @endif
+
+    {{-- ============== FILTER ============== --}}
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-4">
         <form method="GET" class="flex flex-wrap items-end gap-3">
             <div>
@@ -83,16 +93,21 @@
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Cari</label>
-                <input type="text" name="search" value="{{ request('search') }}" class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm w-40" placeholder="Nama / Kode">
+                <input type="text" name="search" value="{{ request('search') }}"
+                       class="rounded-lg border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white text-sm w-40"
+                       placeholder="Nama / Kode">
             </div>
             <div>
-                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">Filter</button>
-                <a href="{{ route('owner.financial.fee-plans.index') }}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 text-sm ml-2">Reset</a>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-search mr-1"></i> Filter
+                </button>
+                <a href="{{ route('owner.financial.fee-plans.index') }}"
+                   class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 text-sm ml-2">Reset</a>
             </div>
         </form>
     </div>
 
-    <!-- Statistik -->
+    {{-- ============== STATISTIK ============== --}}
     <div class="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 p-3">
             <p class="text-xs text-gray-500 dark:text-gray-400">Total</p>
@@ -116,7 +131,7 @@
         </div>
     </div>
 
-    <!-- Tabel -->
+    {{-- ============== TABEL ============== --}}
     <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden">
         <div class="overflow-x-auto">
             <table class="w-full text-sm">

@@ -29,3 +29,4 @@ class EventServiceProvider extends ServiceProvider
         UserQrCode::observe(UserQrCodeObserver::class);
     }
 }
+

@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Models\Presensi;        // <-- Tambahkan ini
 use App\Models\Sertifikat;      // <-- Tambahkan ini
+use App\Services\DashboardItemService;
 
 class DashboardController extends Controller
 {
@@ -50,7 +51,7 @@ class DashboardController extends Controller
                     ->limit(5)
                     ->get();
 
-    return view('anggota.dashboard', compact(
+    return view('anggota-ukm.dashboard', compact(
         'totalPoin',
         'totalEvent',
         'totalPresensi',

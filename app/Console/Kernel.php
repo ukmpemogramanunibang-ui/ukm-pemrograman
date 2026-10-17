@@ -2,116 +2,224 @@
 
 namespace App\Console;
 
+use App\Jobs\PublishScheduledAnnouncements;
+use App\Models\Booking;
+use App\Models\GroupAnnouncement;
+use App\Services\Notifications\NotificationService;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class Kernel extends ConsoleKernel
 {
-    /**
-     * Daftar perintah Artisan yang terdaftar.
-     *
-     * @var array
-     */
+    /* ============================================================
+     | COMMANDS
+     * ============================================================ */
     protected $commands = [
-        Commands\BackupDataCommand::class,
-        Commands\RestoreDataCommand::class,
-        Commands\InstallProtectedDatabase::class, // ✅ Tambahkan jika ada
-        // Tambahkan command lain di sini
+        \App\Console\Commands\PruneNotifications::class,
+        \App\Console\Commands\SyncEntityNotifications::class,
     ];
 
-    /**
-     * Definisi jadwal tugas.
-     */
+    /* ============================================================
+     | SCHEDULE — Semua cron di sini
+     * ============================================================ */
     protected function schedule(Schedule $schedule): void
     {
-            $schedule->command('attendance:auto-sync')->everyThirtySeconds();
-    $schedule->command('attendance:auto-close')->everyMinute();
+        /* =========================================================
+         | BOOKING LIFECYCLE
+         * ========================================================= */
 
-        // ============================================================
-        // 1. BACKUP DATA (sudah ada)
-        // ============================================================
-        $schedule->command('backup:data')
-            ->dailyAt('02:00')
-            ->withoutOverlapping()
-            ->runInBackground()
-            ->then(function () {
-                // Bisa kirim notifikasi sukses ke owner
-                Log::info('Backup harian selesai.');
-            })
-            ->onFailure(function () {
-                Log::error('Backup harian gagal!');
-                // Kirim alert ke admin
-            });
-
-        $schedule->command('backup:data --file')
-            ->everySixHours()
-            ->withoutOverlapping()
-            ->runInBackground();
-
-        // Backup sebelum migration (jika perlu)
-        $schedule->command('backup:data --name=pre_migration_' . date('Ymd_His'))
-            ->everyThirtyMinutes()
-            ->when(function () {
-                // Aktifkan hanya jika ada file migration baru – contoh sederhana
-                return false; // sesuaikan dengan logika Anda
-            });
-
-        // ============================================================
-        // 2. UPDATE STATUS BOOKING (dipindahkan dari Http Kernel)
-        // ============================================================
-        // Setiap menit: booking approved yang sudah lewat end_datetime → completed
+        // Setiap menit: booking yang sudah lewat end_datetime → completed
         $schedule->call(function () {
-            \App\Models\Booking::where('status', 'approved')
+            Booking::where('status', 'approved')
                 ->where('end_datetime', '<', now())
                 ->update(['status' => 'completed']);
-        })->everyMinute()
-          ->withoutOverlapping()
-          ->name('update-bookings-to-completed')
-          ->onFailure(function () {
-              Log::error('Gagal update booking ke completed.');
-          });
+        })
+            ->everyMinute()
+            ->name('booking:auto-complete')
+            ->withoutOverlapping();
 
-        // Setiap 5 menit: ghost booking (tidak check-in 30 menit setelah start) → expired
+        // Setiap 5 menit: booking yang tidak check-in dalam grace period → expired
         $schedule->call(function () {
-            $gracePeriod = 30; // menit
-            \App\Models\Booking::where('status', 'approved')
+            $gracePeriod = (int) config('booking.checkin_grace_minutes', 30);
+
+            Booking::where('status', 'approved')
                 ->where('start_datetime', '<', now()->subMinutes($gracePeriod))
                 ->whereNull('checkin_at')
                 ->update(['status' => 'expired']);
-        })->everyFiveMinutes()
-          ->withoutOverlapping()
-          ->name('expire-ghost-bookings')
-          ->onFailure(function () {
-              Log::error('Gagal meng-expire ghost booking.');
-          });
-
-        // ============================================================
-        // 3. TUGAS TAMBAHAN (opsional)
-        // ============================================================
-        // Bersihkan log yang sudah tua setiap minggu
-        $schedule->command('log:clear')
-            ->weekly()
+        })
+            ->everyFiveMinutes()
+            ->name('booking:auto-expire')
             ->withoutOverlapping();
 
-        // Update status ruangan (jika diperlukan) – bisa dijalankan setiap jam
-        $schedule->call(function () {
-            // Misal: sinkronisasi status ruangan berdasarkan booking terakhir
-        })->hourly()
-          ->name('update-room-status');
 
-        // Kirim laporan aktivitas harian ke owner (contoh)
-        $schedule->command('report:daily')
-            ->dailyAt('07:00')
+        /* =========================================================
+         | ANNOUNCEMENT LIFECYCLE
+         * ========================================================= */
+
+        // Setiap menit: publish pengumuman terjadwal yang sudah waktunya
+        $schedule->job(new PublishScheduledAnnouncements)
+            ->everyMinute()
+            ->name('announcement:publish-scheduled')
+            ->withoutOverlapping();
+
+        // Setiap 15 menit: tandai pengumuman yang sudah lewat expires_at → expired
+        $schedule->call(function () {
+            $affected = GroupAnnouncement::query()
+                ->where('status', 'published')
+                ->whereNotNull('expires_at')
+                ->where('expires_at', '<', now())
+                ->update(['status' => 'expired']);
+
+            if ($affected > 0) {
+                Log::info("Marked {$affected} announcements as expired");
+            }
+        })
+            ->everyFifteenMinutes()
+            ->name('announcement:auto-expire')
+            ->withoutOverlapping();
+
+        // Setiap jam: sinkronisasi counter read_count & ack_count dari tabel notifications
+        $schedule->call(function () {
+            GroupAnnouncement::query()
+                ->where('status', 'published')
+                ->where('published_at', '>=', now()->subDays(7))  // hanya 7 hari terakhir
+                ->chunkById(50, function ($announcements) {
+                    foreach ($announcements as $ann) {
+                        $readCount = DB::table('notifications')
+                            ->where('notifiable_type', \App\Models\User::class)
+                            ->where('data->announcement_id', $ann->id)
+                            ->whereNotNull('read_at')
+                            ->count();
+
+                        $totalCount = DB::table('notifications')
+                            ->where('notifiable_type', \App\Models\User::class)
+                            ->where('data->announcement_id', $ann->id)
+                            ->count();
+
+                        $ann->updateQuietly([
+                            'recipient_count' => $totalCount,
+                            'read_count'      => $readCount,
+                        ]);
+                    }
+                });
+        })
+            ->hourly()
+            ->name('announcement:sync-counters')
+            ->withoutOverlapping();
+
+
+        /* =========================================================
+         | NOTIFICATIONS
+         * ========================================================= */
+
+        // Setiap jam: bersihkan notifikasi yatim (entity sudah dihapus)
+        $schedule->call(function () {
+            $count = app(NotificationService::class)->pruneOrphans();
+            Log::info("Pruned {$count} orphan notifications");
+        })
+            ->hourly()
+            ->name('notifications:prune-orphans')
+            ->withoutOverlapping();
+
+        // Setiap hari 02:00: hapus notifikasi yang sudah dibaca > 30 hari
+        $schedule->call(function () {
+            $deleted = DB::table('notifications')
+                ->whereNotNull('read_at')
+                ->where('read_at', '<', now()->subDays(30))
+                ->delete();
+
+            Log::info("Deleted {$deleted} read notifications older than 30 days");
+        })
+            ->dailyAt('02:00')
+            ->name('notifications:gc-read')
+            ->withoutOverlapping()
+            ->timezone('Asia/Jakarta');
+
+        // Setiap hari 03:30: hapus notifikasi arsip > 90 hari
+        $schedule->call(function () {
+            $deleted = DB::table('notifications')
+                ->whereNotNull('archived_at')
+                ->where('archived_at', '<', now()->subDays(90))
+                ->delete();
+
+            Log::info("Deleted {$deleted} archived notifications older than 90 days");
+        })
+            ->dailyAt('03:30')
+            ->name('notifications:gc-archived')
+            ->withoutOverlapping()
+            ->timezone('Asia/Jakarta');
+
+
+        /* =========================================================
+         | SYSTEM MAINTENANCE
+         * ========================================================= */
+
+        // Setiap hari 03:00: backup database ringan
+        $schedule->command('backup:run --only-db')
+            ->dailyAt('03:00')
+            ->name('db:backup')
+            ->onOneServer()
+            ->timezone('Asia/Jakarta');
+
+        // Setiap hari 04:00: bersihkan session & cache kadaluwarsa
+        $schedule->command('cache:prune-stale-tags')
+            ->dailyAt('04:00')
+            ->name('cache:prune-stale')
+            ->timezone('Asia/Jakarta');
+
+        $schedule->command('session:prune')
+            ->dailyAt('04:15')
+            ->name('session:prune')
+            ->timezone('Asia/Jakarta');
+
+        // Setiap Minggu 03:30: vacuum database (opsional)
+        // $schedule->exec('mysqlcheck -o --all-databases')
+        //     ->weeklyOn(0, '03:30')
+        //     ->name('db:optimize');
+
+
+        /* =========================================================
+         | REPORTING
+         * ========================================================= */
+
+        // Setiap Senin 09:00: laporan mingguan owner
+        $schedule->command('report:weekly-owner')
+            ->weeklyOn(1, '09:00')
+            ->name('report:weekly')
+            ->timezone('Asia/Jakarta');
+
+        // Setiap awal bulan 08:00: laporan bulanan
+        $schedule->command('report:monthly')
+            ->monthlyOn(1, '08:00')
+            ->name('report:monthly')
+            ->timezone('Asia/Jakarta');
+
+
+        /* =========================================================
+         | HEALTH CHECKS (opsional)
+         * ========================================================= */
+
+        // Setiap 5 menit: cek queue health
+        $schedule->call(function () {
+            $size = DB::table('jobs')->count();
+            if ($size > 1000) {
+                Log::warning("Queue backlog: {$size} jobs pending");
+            }
+        })
+            ->everyFiveMinutes()
+            ->name('queue:health-check')
             ->withoutOverlapping();
     }
 
-    /**
-     * Daftarkan command – HANYA muat file, jangan letakkan class di sini.
-     */
+    /* ============================================================
+     | COMMANDS REGISTRATION
+     * ============================================================ */
     protected function commands(): void
     {
-        $this->load(__DIR__.'/Commands');
+        $this->load(__DIR__ . '/Commands');
+
         require base_path('routes/console.php');
     }
 }

@@ -2,7 +2,7 @@
 <!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
-    @include('partials.role.anggota.head')
+    @include('partials.roles.anggota-ukm.head')
     @stack('styles')
 </head>
 <body class="bg-gray-50 dark:bg-midnight text-gray-800 dark:text-gray-200 antialiased">
@@ -10,7 +10,7 @@
     <div class="flex h-screen overflow-hidden" x-data="layoutState()" x-init="initLayout()">
 
         {{-- Sidebar --}}
-        @include('partials.role.anggota.sidebar')
+        @include('partials.roles.anggota-ukm.sidebar')
 
         {{-- Main Wrapper dengan margin dinamis --}}
         <div id="mainContent"
@@ -18,7 +18,7 @@
              :style="'margin-left: ' + mainMargin + 'px;'">
 
             {{-- Header --}}
-            @include('partials.role.anggota.header')
+            @include('partials.roles.anggota-ukm.header')
 
             {{-- Content --}}
             <main class="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50 dark:bg-midnight">
@@ -26,12 +26,12 @@
             </main>
 
             {{-- Footer --}}
-            @include('partials.role.anggota.footer')
+            @include('partials.roles.anggota-ukm.footer')
         </div>
     </div>
 
     {{-- Modal Logout --}}
-    @include('partials.role.anggota.logout-modal')
+    @include('partials.roles.anggota-ukm.logout-modal')
 
     {{-- Scripts --}}
     <script src="{{ asset('js/theme.js') }}"></script>
@@ -53,7 +53,6 @@
                         this.setupResizeListener();
                         this.setupToggleListener();
                         this.setupKeyboardShortcuts();
-                        // Dispatch initial state
                         setTimeout(() => this.updateMainMargin(), 50);
                     },
 
@@ -63,7 +62,6 @@
                         } else {
                             this.mainMargin = 0;
                         }
-                        // Trigger event untuk komponen lain
                         window.dispatchEvent(new CustomEvent('sidebarStateChanged', {
                             detail: {
                                 collapsed: this.isCollapsed,
@@ -81,11 +79,9 @@
                             resizeTimer = setTimeout(() => {
                                 const wasDesktop = this.isDesktop;
                                 this.isDesktop = window.innerWidth >= 768;
-                                // Jika pindah dari mobile ke desktop, tutup mobile overlay
                                 if (!wasDesktop && this.isDesktop) {
                                     this.isMobileOpen = false;
                                 }
-                                // Jika pindah dari desktop ke mobile, pastikan margin 0
                                 if (wasDesktop && !this.isDesktop) {
                                     this.mainMargin = 0;
                                 }
@@ -95,20 +91,16 @@
                     },
 
                     setupToggleListener() {
-                        // Dengarkan event toggle dari header
                         window.addEventListener('toggleSidebar', () => {
                             if (this.isDesktop) {
-                                // Desktop: toggle collapse
                                 this.isCollapsed = !this.isCollapsed;
                                 localStorage.setItem('sidebarCollapsed', this.isCollapsed);
                             } else {
-                                // Mobile: toggle open/close
                                 this.isMobileOpen = !this.isMobileOpen;
                             }
                             this.updateMainMargin();
                         });
 
-                        // Dengarkan event dari sidebar untuk sinkronisasi
                         window.addEventListener('sidebarToggled', (e) => {
                             if (e.detail && e.detail.collapsed !== undefined) {
                                 this.isCollapsed = e.detail.collapsed;
@@ -171,7 +163,6 @@
             }, 300);
         };
 
-        // Close modal on backdrop click
         document.addEventListener('click', function(e) {
             const modal = document.getElementById('logout-confirm-modal');
             if (modal && !modal.classList.contains('hidden') && e.target === modal) {
@@ -197,43 +188,6 @@
             }
         });
     </script>
-    {{-- Deteksi Offline/Online Global --}}
-<script>
-    (function() {
-        // Simpan URL sebelum offline
-        window.addEventListener('beforeunload', function() {
-            sessionStorage.setItem('previousPage', window.location.href);
-        });
-
-        // Saat offline, redirect ke halaman offline (kecuali sudah di offline)
-        window.addEventListener('offline', function() {
-            if (window.location.pathname !== '/offline') {
-                sessionStorage.setItem('previousPage', window.location.href);
-                window.location.href = '/offline';
-            }
-        });
-
-        // Saat online, jika di halaman offline, redirect ke halaman sebelumnya
-        window.addEventListener('online', function() {
-            if (window.location.pathname === '/offline') {
-                const prev = sessionStorage.getItem('previousPage') || '/';
-                window.location.href = prev;
-            }
-        });
-
-        // Cek status saat halaman dimuat (jika offline, redirect)
-        if (!navigator.onLine && window.location.pathname !== '/offline') {
-            sessionStorage.setItem('previousPage', window.location.href);
-            window.location.href = '/offline';
-        }
-
-        // Jika sudah di halaman offline dan ternyata online, redirect balik
-        if (navigator.onLine && window.location.pathname === '/offline') {
-            const prev = sessionStorage.getItem('previousPage') || '/';
-            window.location.href = prev;
-        }
-    })();
-</script>
     @stack('scripts')
 </body>
 </html>

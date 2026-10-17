@@ -25,6 +25,8 @@ use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Route; 
+use Laravel\Sanctum\HasApiTokens;
+
 class User extends Authenticatable
 {
     use HasFactory;
@@ -32,6 +34,7 @@ class User extends Authenticatable
     use HasRoles;
     use LogsActivity;
     use SoftDeletes;
+    use HasApiTokens;
 
     protected string $guard_name = 'web';
 
@@ -128,6 +131,7 @@ class User extends Authenticatable
             'birth_date'                  => 'date',
             'preferences'                 => 'array',
             'settings'                    => 'array',
+            'portfolio_links' => 'array',
             'login_devices'               => 'array',
             'is_verified'                 => 'boolean',
             'is_active'                   => 'boolean',
@@ -153,18 +157,97 @@ public function qrCode()
 {
     return $this->hasOne(UserQrCode::class);
 }
-    protected static function booted(): void
-    {
-        static::creating(function (User $user) {
-            if (empty($user->user_uuid)) {
-                $user->user_uuid = (string) Str::uuid();
+protected static function booted()
+{
+    /* ═══════════════════════════════════════════════════════
+       GUARD: Ketua hanya boleh 1
+       Skip guard kalau:
+       - Update dari sistem (bypass flag)
+       - User sebelumnya BUKAN level 3 (artinya promote dari luar)
+       - User sebelumnya level 3 → level 3 (tidak ada perubahan)
+       - User di-demote (level 3 → 4)
+       ═══════════════════════════════════════════════════════ */
+    static::saving(function ($user) {
+        // Skip kalau flag bypass aktif
+        if (!empty($user->_bypass_ketua_guard)) {
+            return;
+        }
+
+        // Hanya cek kalau:
+        // 1. Target jadi level 3
+        // 2. Ada perubahan level_id
+        // 3. Sebelumnya BUKAN level 3 (artinya promote ke ketua)
+        $wasKetua = $user->exists && (int) $user->getOriginal('level_id') === 3;
+        $willBeKetua = (int) $user->level_id === 3;
+        $changed = $user->isDirty('level_id');
+
+        if ($willBeKetua && $changed && !$wasKetua) {
+            $existing = static::where('level_id', 3)
+                ->where('id', '!=', $user->id ?? 0)
+                ->where('is_active', true)
+                ->whereNull('deleted_at')
+                ->exists();
+
+            if ($existing) {
+                throw new \RuntimeException(
+                    'Sudah ada Ketua aktif. Gunakan fitur Transfer Ketua.'
+                );
             }
-            if (empty($user->member_number) && $user->email !== 'owner@ukm.ac.id') {
-                $user->member_number = self::generateMemberNumber();
-            }
-        });
+        }
+    });
+}
+public $_bypass_ketua_guard = false;
+
+/* ═══════════════════════════════════════════════════════
+   PIN — untuk verifikasi keamanan aksi kritis
+   ═══════════════════════════════════════════════════════ */
+
+/** Default PIN untuk user yang belum set PIN */
+public const DEFAULT_PIN = '12345678';
+
+/**
+ * Mutator: otomatis hash PIN saat di-set.
+ */
+public function setPinAttribute($value): void
+{
+    if (empty($value)) {
+        $this->attributes['pin'] = null;
+        return;
+    }
+    // Jangan re-hash kalau sudah bcrypt
+    if (is_string($value) && str_starts_with($value, '$2y$')) {
+        $this->attributes['pin'] = $value;
+    } else {
+        $this->attributes['pin'] = \Illuminate\Support\Facades\Hash::make($value);
+    }
+}
+
+/**
+ * Verifikasi PIN.
+ * - Kalau user belum punya PIN → fallback ke DEFAULT_PIN
+ * - Kalau sudah → cek dengan Hash::check()
+ */
+public function verifyPin(?string $pin): bool
+{
+    if (empty($pin)) {
+        return false;
     }
 
+    // Belum set PIN → pakai default
+    if (empty($this->pin)) {
+        return hash_equals(self::DEFAULT_PIN, (string) $pin);
+    }
+
+    return \Illuminate\Support\Facades\Hash::check($pin, $this->pin);
+}
+
+/**
+ * Cek apakah user sudah set PIN sendiri (bukan default).
+ */
+public function hasCustomPin(): bool
+{
+    return !empty($this->pin);
+}
     public static function generateMemberNumber(): string
     {
         return DB::transaction(function () {
@@ -365,22 +448,38 @@ public function getLevelNameAttribute()
 
 public function getDashboardRoute(): string
 {
-    $routeName = match ($this->level_id) {
+    /**
+     * Mapping level_id → nama route.
+     * PENTING: jangan pernah fallback ke 'explore' untuk user yang login.
+     */
+    $map = [
         1 => 'owner.dashboard',
         2 => 'superadmin.dashboard',
         3 => 'ketua.dashboard',
-        4 => 'pengurus.dashboard',
+        4 => 'pengurus.tugas',
         5 => 'anggota.dashboard',
-        6 => 'guest.dashboard',
-        default => null,
-    };
+        6 => 'landing',   // guest/pengunjung → landing publik, BUKAN explore
+    ];
 
-    if ($routeName && Route::has($routeName)) {   // ← sekarang Route = facade Illuminate
+    $routeName = $map[(int) $this->level_id] ?? null;
+
+    // Fallback khusus pengurus
+    if ($routeName === 'pengurus.tugas' && ! Route::has('pengurus.tugas')) {
+        $routeName = Route::has('pengurus.dashboard') ? 'pengurus.dashboard' : null;
+    }
+
+    if ($routeName && Route::has($routeName)) {
         return route($routeName);
     }
 
-    return route('landing');
+    // Fallback terakhir: dashboard umum / landing
+    return Route::has('dashboard') ? route('dashboard') : url('/');
 }
+// app/Models/User.php
+public function events(): HasMany       { return $this->hasMany(EventRegistration::class); }
+public function presensis(): HasMany    { return $this->hasMany(Presensi::class); }
+public function sertifikats(): HasMany  { return $this->hasMany(Sertifikat::class); }
+public function pointActivities(): HasMany { return $this->hasMany(PointActivity::class); }
 // Relasi ke percakapan sebagai peserta
 public function conversations()
 {
@@ -400,15 +499,15 @@ public function createdConversations()
 {
     return $this->hasMany(Conversation::class, 'created_by');
 }
-    public function notifications()
-    {
-        return $this->hasMany(Notification::class);
-    }
+public function notifications()
+{
+    return $this->hasMany(\App\Models\Notification::class, 'user_id');
+}
 
-    public function unreadNotifications()
-    {
-        return $this->notifications()->whereNull('read_at');
-    }
+public function unreadNotifications()
+{
+    return $this->notifications()->whereNull('read_at');
+}
     public function groupAnnouncements()
 {
     return $this->hasMany(GroupAnnouncement::class, 'created_by');
@@ -485,5 +584,46 @@ public function getAttendanceStatsAttribute(): array
         'bolos'   => $records->where('status', 'absent')->count(),
         'rate'    => round(($records->whereIn('status', ['present','late','late_excused'])->count() / $total) * 100, 1),
     ];
+}
+/* =========================================================
+ | GROUP RELATIONS (UKM Kelompok)
+ * ========================================================= */
+
+/**
+ * Pivot records — akses langsung ke group_members.
+ */
+public function groupMembers(): HasMany
+{
+    return $this->hasMany(GroupMember::class, 'user_id');
+}
+
+/**
+ * Relasi many-to-many ke Group via pivot group_members.
+ * Cocok untuk `->with('groups')` di controller.
+ */
+public function groups(): BelongsToMany
+{
+    return $this->belongsToMany(Group::class, 'group_members')
+        ->withPivot([
+            'position',
+            'status',
+            'joined_at',
+            'left_at',
+            'can_view',
+            'can_announcement',
+            'can_message',
+            'can_manage_members',
+        ])
+        ->withTimestamps();
+}
+
+/**
+ * Hanya kelompok aktif (status='aktif' & pivot status='aktif').
+ */
+public function activeGroups(): BelongsToMany
+{
+    return $this->groups()
+        ->wherePivot('status', 'aktif')
+        ->where('groups.status', 'aktif');
 }
 }

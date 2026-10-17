@@ -1,0 +1,26 @@
+<?php
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\NfcController;
+
+/*
+|--------------------------------------------------------------------------
+| API Routes — UNICODE Connect
+|--------------------------------------------------------------------------
+*/
+
+// Route bawaan Sanctum (biarkan)
+Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
+    return $request->user();
+});
+
+// ── Mobile API ──────────────────────────────────────────────────────────
+Route::prefix('mobile')->group(function () {
+
+    // Cek server hidup
+    Route::get('/nfc/ping', [NfcController::class, 'ping']);
+
+    // Resolve NFC — dipanggil dari Flutter
+    Route::post('/nfc/resolve', [NfcController::class, 'resolve']);
+});

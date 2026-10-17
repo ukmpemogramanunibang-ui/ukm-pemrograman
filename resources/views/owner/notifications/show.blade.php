@@ -1,337 +1,561 @@
 @extends('layouts.roles.' . auth()->user()->getRoleLayout())
 
-@section('title', 'Detail Notifikasi – UNICODE')
-@section('page-title', 'Detail Notifikasi')
+@section('title', $notif->title . ' – Notifikasi UNICODE')
 
 @section('content')
-<div class="p-6 max-w-4xl mx-auto">
+@php
+    // ═══════════════════════════════════════════════════════
+    // 1. STATUS & META
+    // ═══════════════════════════════════════════════════════
+    $isUnread   = is_null($notif->read_at);
+    $isStarred  = ! is_null($notif->starred_at);
+    $isArchived = ! is_null($notif->archived_at);
+    $isActioned = ! is_null($notif->actioned_at);
+    $priority   = $notif->priority ?? 'normal';
 
-    {{-- Tombol Kembali --}}
-    <div class="mb-4">
-        <a href="{{ route('owner.notifications.index') }}" class="inline-flex items-center text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition">
-            <i class="fas fa-arrow-left mr-2"></i> Kembali ke daftar notifikasi
-        </a>
-    </div>
+    // ═══════════════════════════════════════════════════════
+    // 2. AUTO-DETECT LINK TUJUAN
+    //    Prioritas: action_url → data.url → entity → fallback
+    // ═══════════════════════════════════════════════════════
+    $targetUrl = null;
+    $targetLabel = 'Buka Halaman Terkait';
 
-    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl overflow-hidden shadow-lg">
+    if (! empty($notif->action_url) && $notif->action_url !== '#') {
+        $targetUrl = $notif->action_url;
+    } elseif (! empty($notif->data['url'])) {
+        $targetUrl = $notif->data['url'];
+    } elseif (! empty($notif->data['link'])) {
+        $targetUrl = $notif->data['link'];
+    } else {
+        // Auto build dari entity_type + entity_id
+        $entityShort = $notif->entity_type ? class_basename($notif->entity_type) : null;
+        $entityId    = $notif->entity_id;
 
-        {{-- Header --}}
-        <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div>
-                <div class="flex items-center gap-2">
-                    <h1 class="text-2xl font-bold text-gray-800 dark:text-white">{{ $notification->title }}</h1>
-                    @if($notification->is_starred)
-                        <span class="text-yellow-500 text-lg"><i class="fas fa-star"></i></span>
-                    @endif
-                </div>
-                <div class="flex flex-wrap items-center gap-3 mt-2">
-                    <span class="px-2 py-1 rounded-full text-xs bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300">
-                        {{ ucfirst(str_replace('_', ' ', $notification->type ?? 'Sistem')) }}
-                    </span>
-                    <span class="px-2 py-1 rounded-full text-xs {{ $notification->priority_badge }}">
-                        {{ ucfirst($notification->priority) }}
-                    </span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">
-                        <i class="far fa-clock mr-1"></i> {{ $notification->created_at->format('d F Y H:i') }}
-                    </span>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">
-                        {{ $notification->created_at->diffForHumans() }}
-                    </span>
-                    @if($notification->is_expired)
-                        <span class="px-2 py-1 rounded-full text-xs bg-red-100 text-red-700">Kadaluarsa</span>
-                    @endif
-                </div>
-            </div>
-            <div class="flex flex-wrap gap-2 flex-shrink-0">
-                @if(is_null($notification->read_at))
-                    <form action="{{ route('owner.notifications.read', $notification->id) }}" method="POST" class="inline">
-                        @csrf
-                        <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition shadow-md shadow-blue-500/20">
-                            <i class="fas fa-check mr-2"></i> Tandai dibaca
-                        </button>
-                    </form>
-                @else
-                    <span class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 text-sm rounded-lg inline-flex items-center">
-                        <i class="fas fa-check-circle mr-2"></i> Sudah dibaca
-                    </span>
-                @endif
-                <form action="{{ route('owner.notifications.toggle-star', $notification->id) }}" method="POST" class="inline">
-                    @csrf
-                    <button type="submit" class="px-4 py-2 rounded-lg text-sm border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition {{ $notification->is_starred ? 'text-yellow-500 border-yellow-500' : 'text-gray-500' }}">
-                        <i class="fas {{ $notification->is_starred ? 'fa-star' : 'fa-star' }}"></i> {{ $notification->is_starred ? 'Disimpan' : 'Simpan' }}
-                    </button>
-                </form>
-                @if(!$notification->is_archived)
-                    <form action="{{ route('owner.notifications.archive', $notification->id) }}" method="POST" class="inline">
-                        @csrf
-                        <button type="submit" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-sm rounded-lg transition">
-                            <i class="fas fa-archive mr-2"></i> Arsipkan
-                        </button>
-                    </form>
-                @endif
-            </div>
+        if ($entityShort && $entityId) {
+            $targetUrl = match ($entityShort) {
+                'LmsItem'           => route('owner.lms.items.show', $entityId),
+                'Group'             => route('owner.lms.groups.show', $entityId),
+                'Booking'           => route('owner.bookings.show', $entityId),
+                'User'              => route('owner.user', $entityId),
+                'GroupAnnouncement' => route('owner.kelompok.pengumuman'),
+                default             => null,
+            };
+        }
+    }
+
+    // Label tombol sesuai konteks
+    $typeKey = $notif->data['type'] ?? $notif->type ?? '';
+    if (str_contains($typeKey, 'lms_reminder')) {
+        $targetLabel = 'Buka Tugas & Kumpulkan';
+    } elseif (str_contains($typeKey, 'lms')) {
+        $targetLabel = 'Lihat Konten LMS';
+    }
+
+    // ═══════════════════════════════════════════════════════
+    // 3. THEME berdasarkan tipe notifikasi
+    // ═══════════════════════════════════════════════════════
+    $theme = (function () use ($typeKey, $priority) {
+        if (str_contains($typeKey, 'lms_reminder')) return [
+            'gradient' => 'from-violet-500 via-fuchsia-500 to-pink-500',
+            'icon'     => 'fa-bell',
+            'emoji'    => '📚',
+            'label'    => 'Pengingat Tugas',
+        ];
+        if (str_contains($typeKey, 'lms')) return [
+            'gradient' => 'from-violet-500 to-indigo-600',
+            'icon'     => 'fa-graduation-cap',
+            'emoji'    => '🎓',
+            'label'    => 'LMS',
+        ];
+        if (str_contains($typeKey, 'booking')) return [
+            'gradient' => 'from-emerald-500 to-teal-600',
+            'icon'     => 'fa-calendar-check',
+            'emoji'    => '📅',
+            'label'    => 'Booking',
+        ];
+        if (str_contains($typeKey, 'announcement')) return [
+            'gradient' => 'from-amber-500 to-orange-600',
+            'icon'     => 'fa-bullhorn',
+            'emoji'    => '📣',
+            'label'    => 'Pengumuman',
+        ];
+        return [
+            'gradient' => 'from-slate-600 to-slate-800',
+            'icon'     => 'fa-bell',
+            'emoji'    => '🔔',
+            'label'    => 'Notifikasi',
+        ];
+    })();
+
+    $priorityBadge = match ($priority) {
+        'urgent'    => ['label' => 'Mendesak', 'cls' => 'bg-rose-500 text-white'],
+        'high'      => ['label' => 'Tinggi',    'cls' => 'bg-orange-500 text-white'],
+        'important' => ['label' => 'Penting',   'cls' => 'bg-amber-500 text-white'],
+        default     => null,
+    };
+
+    // Data tambahan — sembunyikan yang teknis
+    $extraData = collect($notif->data ?? [])
+        ->except(['title', 'message', 'url', 'link', 'type', 'group_names', 'group_count'])
+        ->filter(fn ($v) => ! is_null($v) && $v !== '' && $v !== [])
+        ->all();
+@endphp
+
+<div class="min-h-full bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-950">
+    <div class="p-4 md:p-6 max-w-3xl mx-auto">
+
+        {{-- ═══════════════ BACK ═══════════════ --}}
+        <div class="mb-4">
+            <a href="{{ route('owner.notifications.index') }}"
+               class="inline-flex items-center gap-2 text-sm font-semibold
+                      text-slate-600 dark:text-slate-300
+                      hover:text-violet-600 dark:hover:text-violet-400 transition">
+                <i class="fas fa-arrow-left text-xs"></i>
+                Kembali ke Notifikasi
+            </a>
         </div>
 
-        {{-- Body --}}
-        <div class="p-6 space-y-6">
+        {{-- ═══════════════ CARD ═══════════════ --}}
+        <div class="bg-white dark:bg-slate-800 rounded-3xl shadow-xl shadow-slate-900/5 dark:shadow-black/20
+                    ring-1 ring-black/5 dark:ring-white/5 overflow-hidden">
 
-            {{-- Pesan --}}
-            <div>
-                <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Pesan</h3>
-                <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap border border-gray-200 dark:border-gray-700">
-                    {{ $notification->message }}
+            {{-- ═════════ HERO HEADER ═════════ --}}
+            <div class="relative overflow-hidden bg-gradient-to-br {{ $theme['gradient'] }} text-white">
+                {{-- Decorative circles --}}
+                <div class="absolute -top-16 -right-16 w-56 h-56 rounded-full bg-white/10 blur-2xl"></div>
+                <div class="absolute -bottom-20 -left-12 w-64 h-64 rounded-full bg-black/10 blur-3xl"></div>
+
+                <div class="relative px-6 py-7 md:px-8 md:py-9">
+
+                    {{-- Priority ribbon --}}
+                    @if($priorityBadge)
+                        <div class="absolute top-4 right-4">
+                            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full
+                                         text-[10px] font-black uppercase tracking-wider
+                                         {{ $priorityBadge['cls'] }} shadow-lg">
+                                <i class="fas fa-bolt text-[9px]"></i>
+                                {{ $priorityBadge['label'] }}
+                            </span>
+                        </div>
+                    @endif
+
+                    <div class="flex items-start gap-4 md:gap-5">
+                        {{-- Icon --}}
+                        <div class="shrink-0 w-16 h-16 md:w-20 md:h-20 rounded-2xl
+                                    bg-white/20 backdrop-blur-sm
+                                    ring-1 ring-white/30
+                                    flex items-center justify-center
+                                    text-3xl md:text-4xl shadow-lg">
+                            {{ $theme['emoji'] }}
+                        </div>
+
+                        {{-- Title --}}
+                        <div class="flex-1 min-w-0 pt-1">
+                            <p class="text-[11px] font-black uppercase tracking-[0.15em] text-white/75 mb-1.5">
+                                {{ $theme['label'] }}
+                            </p>
+                            <h1 class="text-xl md:text-2xl lg:text-3xl font-black leading-tight
+                                       break-words text-white">
+                                {{ $notif->title ?? 'Notifikasi' }}
+                            </h1>
+
+                            {{-- Status pills --}}
+                            <div class="flex flex-wrap items-center gap-1.5 mt-3">
+                                @if($isStarred)
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                                                 text-[10px] font-bold bg-white/25 backdrop-blur-sm
+                                                 ring-1 ring-white/30">
+                                        <i class="fas fa-star text-amber-300 text-[9px]"></i> Favorit
+                                    </span>
+                                @endif
+
+                                @if($isUnread)
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                                                 text-[10px] font-bold bg-white/25 backdrop-blur-sm
+                                                 ring-1 ring-white/30">
+                                        <span class="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-pulse"></span>
+                                        Belum Dibaca
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                                                 text-[10px] font-bold bg-white/15 backdrop-blur-sm
+                                                 ring-1 ring-white/20">
+                                        <i class="fas fa-check-circle text-[9px]"></i> Dibaca
+                                    </span>
+                                @endif
+
+                                @if($isArchived)
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+                                                 text-[10px] font-bold bg-white/15 backdrop-blur-sm
+                                                 ring-1 ring-white/20">
+                                        <i class="fas fa-box-archive text-[9px]"></i> Diarsipkan
+                                    </span>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Timestamp --}}
+                    <div class="mt-5 flex flex-wrap items-center gap-x-4 gap-y-1
+                                text-[11px] md:text-xs text-white/80">
+                        <span class="inline-flex items-center gap-1.5">
+                            <i class="far fa-clock"></i>
+                            {{ optional($notif->created_at)->translatedFormat('d F Y, H:i') }}
+                        </span>
+                        <span class="inline-flex items-center gap-1.5">
+                            <i class="fas fa-hourglass-half"></i>
+                            {{ optional($notif->created_at)->diffForHumans() }}
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            {{-- Sumber / Referensi --}}
-            @if($notification->reference_type && $notification->reference_id)
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Sumber Aktivitas</h3>
-                    <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-                        <p class="text-sm text-gray-800 dark:text-white font-medium">
-                            {{ ucfirst(str_replace('_', ' ', $notification->reference_type)) }}
-                        </p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">ID Referensi: #{{ $notification->reference_id }}</p>
-                        @if($notification->action_url)
-                            <a href="{{ $notification->action_url }}" class="inline-block mt-2 text-sm text-blue-600 hover:underline">
-                                <i class="fas fa-external-link-alt mr-1"></i> Buka halaman terkait
-                            </a>
+            {{-- ═════════ PRIMARY CTA — AUTO LINK ═════════ --}}
+            @if($targetUrl)
+                <div class="px-6 py-5 md:px-8 md:py-6
+                            bg-gradient-to-r from-slate-50 to-white dark:from-slate-900 dark:to-slate-800
+                            border-b border-slate-200 dark:border-slate-700">
+                    <a href="{{ $targetUrl }}"
+                       class="group flex items-center gap-4 p-4 rounded-2xl
+                              bg-white dark:bg-slate-800
+                              ring-2 ring-violet-200 dark:ring-violet-700/40
+                              hover:ring-violet-400 dark:hover:ring-violet-500
+                              hover:shadow-lg hover:shadow-violet-500/10
+                              transition-all active:scale-[0.99]">
+                        <div class="shrink-0 w-12 h-12 rounded-xl
+                                    bg-gradient-to-br from-violet-500 to-fuchsia-600
+                                    flex items-center justify-center
+                                    text-white shadow-md shadow-violet-500/30
+                                    group-hover:scale-105 transition-transform">
+                            <i class="fas fa-arrow-right text-lg"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[10px] font-black uppercase tracking-wider
+                                      text-violet-600 dark:text-violet-400">
+                                Tindakan Diperlukan
+                            </p>
+                            <p class="text-sm md:text-base font-black text-slate-900 dark:text-white mt-0.5">
+                                {{ $targetLabel }}
+                            </p>
+                            <p class="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                                {{ $targetUrl }}
+                            </p>
+                        </div>
+                        <i class="fas fa-chevron-right text-slate-400 group-hover:text-violet-500
+                                  group-hover:translate-x-1 transition-all"></i>
+                    </a>
+                </div>
+            @endif
+
+            {{-- ═════════ BODY ═════════ --}}
+            <div class="px-6 py-6 md:px-8 md:py-8 space-y-6">
+
+                {{-- MESSAGE --}}
+                @if($notif->message || ($notif->data['message'] ?? null))
+                    <div>
+                        <div class="flex items-center gap-2 mb-2.5">
+                            <i class="fas fa-quote-left text-violet-500 text-xs"></i>
+                            <h3 class="text-[11px] font-black uppercase tracking-wider
+                                       text-slate-500 dark:text-slate-400">
+                                Pesan
+                            </h3>
+                        </div>
+                        <div class="rounded-2xl p-5
+                                    bg-gradient-to-br from-slate-50 to-white
+                                    dark:from-slate-900 dark:to-slate-800/50
+                                    border border-slate-200 dark:border-slate-700
+                                    text-sm md:text-[15px] leading-relaxed whitespace-pre-line
+                                    text-slate-700 dark:text-slate-200
+                                    shadow-sm">
+                            {{ $notif->message ?? $notif->data['message'] }}
+                        </div>
+                    </div>
+                @endif
+
+                {{-- GROUP TARGETS --}}
+                @php
+                    $groupNames = $notif->data['group_names'] ?? [];
+                    $groupCount = $notif->data['group_count'] ?? 0;
+                @endphp
+                @if(! empty($groupNames))
+                    <div>
+                        <div class="flex items-center gap-2 mb-2.5">
+                            <i class="fas fa-users text-blue-500 text-xs"></i>
+                            <h3 class="text-[11px] font-black uppercase tracking-wider
+                                       text-slate-500 dark:text-slate-400">
+                                Target Kelompok
+                                @if($groupCount > 0)
+                                    <span class="text-slate-400 font-normal normal-case">({{ $groupCount }})</span>
+                                @endif
+                            </h3>
+                        </div>
+                        <div class="flex flex-wrap gap-2">
+                            @foreach($groupNames as $gName)
+                                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl
+                                             text-xs font-bold
+                                             bg-blue-50 dark:bg-blue-900/20
+                                             text-blue-700 dark:text-blue-300
+                                             border border-blue-200 dark:border-blue-800">
+                                    <i class="fas fa-folder-open text-[10px]"></i>
+                                    {{ $gName }}
+                                </span>
+                            @endforeach
+                            @if($groupCount > count($groupNames))
+                                <span class="inline-flex items-center px-3 py-1.5 rounded-xl
+                                             text-xs font-bold
+                                             bg-slate-100 dark:bg-slate-700
+                                             text-slate-500 dark:text-slate-400">
+                                    +{{ $groupCount - count($groupNames) }} lainnya
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                @endif
+
+                {{-- REQUIRES ACTION NOTICE --}}
+                @if($notif->requires_action && ! $isActioned)
+                    <div class="rounded-2xl p-4
+                                bg-gradient-to-r from-amber-50 to-orange-50
+                                dark:from-amber-900/20 dark:to-orange-900/20
+                                border border-amber-200 dark:border-amber-700/40
+                                flex items-start gap-3">
+                        <div class="shrink-0 w-10 h-10 rounded-xl
+                                    bg-amber-500 text-white
+                                    flex items-center justify-center shadow-sm">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-sm font-black text-amber-900 dark:text-amber-200">
+                                Notifikasi ini membutuhkan tindakan
+                            </p>
+                            <p class="text-xs text-amber-700 dark:text-amber-300 mt-1 leading-relaxed">
+                                Selesaikan tindakan yang diperlukan, lalu tandai sebagai sudah ditangani di bawah.
+                            </p>
+                        </div>
+                    </div>
+                @endif
+
+                {{-- EXTRA DATA — Accordion (default collapsed) --}}
+                @if(! empty($extraData))
+                    <details class="group">
+                        <summary class="cursor-pointer list-none flex items-center justify-between
+                                        p-3 rounded-xl
+                                        bg-slate-50 dark:bg-slate-900/50
+                                        border border-slate-200 dark:border-slate-700
+                                        hover:bg-slate-100 dark:hover:bg-slate-900
+                                        transition">
+                            <span class="flex items-center gap-2 text-[11px] font-black uppercase
+                                         tracking-wider text-slate-500 dark:text-slate-400">
+                                <i class="fas fa-circle-info"></i>
+                                Detail Teknis ({{ count($extraData) }})
+                            </span>
+                            <i class="fas fa-chevron-down text-slate-400
+                                      group-open:rotate-180 transition-transform text-xs"></i>
+                        </summary>
+                        <div class="mt-2 rounded-xl p-4
+                                    bg-slate-50 dark:bg-slate-900/50
+                                    border border-slate-200 dark:border-slate-700
+                                    overflow-x-auto">
+                            <dl class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                                @foreach($extraData as $key => $value)
+                                    <div class="min-w-0">
+                                        <dt class="text-slate-500 dark:text-slate-400 font-bold uppercase
+                                                   tracking-wider text-[10px]">
+                                            {{ str_replace(['_', '-'], ' ', $key) }}
+                                        </dt>
+                                        <dd class="text-slate-800 dark:text-slate-200 mt-1 break-words
+                                                   font-mono text-[11px]">
+                                            @if(is_array($value))
+                                                {{ implode(', ', array_map(fn ($v) => is_scalar($v) ? $v : json_encode($v), $value)) }}
+                                            @else
+                                                {{ $value }}
+                                            @endif
+                                        </dd>
+                                    </div>
+                                @endforeach
+                            </dl>
+                        </div>
+                    </details>
+                @endif
+
+                {{-- STATUS TIMELINE --}}
+                <div class="pt-2">
+                    <div class="flex items-center gap-2 mb-3">
+                        <i class="fas fa-timeline text-slate-400 text-xs"></i>
+                        <h3 class="text-[11px] font-black uppercase tracking-wider
+                                   text-slate-500 dark:text-slate-400">
+                            Timeline
+                        </h3>
+                    </div>
+                    <div class="space-y-3">
+                        <div class="flex items-start gap-3">
+                            <div class="shrink-0 w-7 h-7 rounded-full bg-emerald-500 text-white
+                                        flex items-center justify-center text-[10px] shadow-sm">
+                                <i class="fas fa-plus"></i>
+                            </div>
+                            <div class="pt-0.5">
+                                <p class="text-xs font-bold text-slate-800 dark:text-slate-200">Dibuat</p>
+                                <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                    {{ optional($notif->created_at)->translatedFormat('d M Y, H:i') }}
+                                </p>
+                            </div>
+                        </div>
+
+                        @if(! $isUnread)
+                            <div class="flex items-start gap-3">
+                                <div class="shrink-0 w-7 h-7 rounded-full bg-blue-500 text-white
+                                            flex items-center justify-center text-[10px] shadow-sm">
+                                    <i class="fas fa-eye"></i>
+                                </div>
+                                <div class="pt-0.5">
+                                    <p class="text-xs font-bold text-slate-800 dark:text-slate-200">Dibaca</p>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                        {{ optional($notif->read_at)->translatedFormat('d M Y, H:i') ?? '—' }}
+                                    </p>
+                                </div>
+                            </div>
+                        @endif
+
+                        @if($isActioned)
+                            <div class="flex items-start gap-3">
+                                <div class="shrink-0 w-7 h-7 rounded-full bg-violet-500 text-white
+                                            flex items-center justify-center text-[10px] shadow-sm">
+                                    <i class="fas fa-check-double"></i>
+                                </div>
+                                <div class="pt-0.5">
+                                    <p class="text-xs font-bold text-slate-800 dark:text-slate-200">Ditangani</p>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                        {{ optional($notif->actioned_at)->translatedFormat('d M Y, H:i') ?? '—' }}
+                                    </p>
+                                </div>
+                            </div>
+                        @endif
+
+                        @if($isArchived)
+                            <div class="flex items-start gap-3">
+                                <div class="shrink-0 w-7 h-7 rounded-full bg-slate-500 text-white
+                                            flex items-center justify-center text-[10px] shadow-sm">
+                                    <i class="fas fa-box-archive"></i>
+                                </div>
+                                <div class="pt-0.5">
+                                    <p class="text-xs font-bold text-slate-800 dark:text-slate-200">Diarsipkan</p>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                        {{ optional($notif->archived_at)->translatedFormat('d M Y, H:i') ?? '—' }}
+                                    </p>
+                                </div>
+                            </div>
                         @endif
                     </div>
                 </div>
-            @endif
+            </div>
 
-            {{-- Pengirim --}}
-            @if($notification->sender)
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Pengirim</h3>
-                    <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 flex flex-col sm:flex-row items-start gap-4 border border-gray-200 dark:border-gray-700">
-                        <img src="{{ $notification->sender->avatar_url ? asset('storage/'.$notification->sender->avatar_url) : asset('images/default-avatar.png') }}"
-                             alt="{{ $notification->sender->name }}"
-                             class="w-20 h-20 rounded-full object-cover border-2 border-gray-300 dark:border-gray-600 flex-shrink-0">
-                        <div class="flex-1 w-full">
-                            <div class="flex flex-wrap items-center gap-2 mb-2">
-                                <p class="text-lg font-bold text-gray-800 dark:text-white">{{ $notification->sender->name }}</p>
-                                @if($notification->sender_id == auth()->id())
-                                    <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                        <i class="fas fa-user-check text-xs"></i> Dikirim oleh Anda
-                                    </span>
-                                @endif
-                            </div>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                                <div><span class="text-gray-500 dark:text-gray-400">NIM</span> <p class="text-gray-800 dark:text-white">{{ $notification->sender->nim ?? '-' }}</p></div>
-                                <div><span class="text-gray-500 dark:text-gray-400">Email</span> <p class="text-gray-800 dark:text-white">{{ $notification->sender->email }}</p></div>
-                                <div><span class="text-gray-500 dark:text-gray-400">Telepon</span> <p class="text-gray-800 dark:text-white">{{ $notification->sender->phone ?? '-' }}</p></div>
-                                <div><span class="text-gray-500 dark:text-gray-400">Level</span> <p class="text-gray-800 dark:text-white">{{ $notification->sender->level->name ?? '-' }}</p></div>
-                                <div><span class="text-gray-500 dark:text-gray-400">Status</span> <p class="text-gray-800 dark:text-white">{{ $notification->sender->is_active ? 'Aktif' : 'Tidak Aktif' }}</p></div>
-                                <div><span class="text-gray-500 dark:text-gray-400">Bergabung</span> <p class="text-gray-800 dark:text-white">{{ $notification->sender->created_at->format('d F Y') }}</p></div>
-                            </div>
-                            <div class="mt-4 flex flex-wrap gap-2">
-                                @if($notification->sender_id != auth()->id())
-                                    <a href="{{ route('owner.chats.private', $notification->sender->user_uuid) }}" class="inline-flex items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition text-sm shadow-md shadow-green-500/20">
-                                        <i class="fas fa-comment-dots mr-2"></i> Balas via Chat
-                                    </a>
-                                @else
-                                    <span class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-lg text-sm cursor-not-allowed">
-                                        <i class="fas fa-user mr-2"></i> Anda sendiri
-                                    </span>
-                                @endif
-                                <a href="{{ route('profile.public', $notification->sender->id) }}" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm">
-                                    <i class="fas fa-user mr-2"></i> Lihat Profil
-                                </a>
-                                @if($notification->sender_id == auth()->id())
-                                    <a href="{{ route('owner.notifications.index', ['sender' => $notification->sender_id]) }}" class="inline-flex items-center px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition text-sm">
-                                        <i class="fas fa-list mr-2"></i> Notifikasi saya
-                                    </a>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            @endif
+            {{-- ═════════ FOOTER ACTIONS ═════════ --}}
+            <div class="px-6 py-4 md:px-8 md:py-5
+                        border-t border-slate-200 dark:border-slate-700
+                        bg-slate-50/60 dark:bg-slate-900/40
+                        flex flex-wrap items-center justify-between gap-3">
 
-            {{-- Tombol Aksi berdasarkan tipe --}}
-            @php
-                $actionButtons = [];
-                if ($notification->type === 'incoming_mail' && $notification->reference_type === 'incoming_mail') {
-                    $actionButtons[] = ['label' => 'Lihat Surat', 'url' => route('owner.officials.secretary.incoming-mails.show', $notification->reference_id), 'icon' => 'fa-eye'];
-                    $actionButtons[] = ['label' => 'Setujui', 'url' => '#', 'icon' => 'fa-check', 'class' => 'bg-green-600 hover:bg-green-700'];
-                    $actionButtons[] = ['label' => 'Tolak', 'url' => '#', 'icon' => 'fa-times', 'class' => 'bg-red-600 hover:bg-red-700'];
-                } elseif ($notification->type === 'chat') {
-                    $actionButtons[] = ['label' => 'Buka Chat', 'url' => route('owner.chats.private', $notification->sender->user_uuid ?? ''), 'icon' => 'fa-comments'];
-                } elseif ($notification->type === 'task') {
-                    $actionButtons[] = ['label' => 'Lihat Tugas', 'url' => '#', 'icon' => 'fa-tasks'];
-                    $actionButtons[] = ['label' => 'Tandai Dikerjakan', 'url' => '#', 'icon' => 'fa-check-double'];
-                } elseif ($notification->type === 'agenda') {
-                    $actionButtons[] = ['label' => 'Lihat Agenda', 'url' => '#', 'icon' => 'fa-calendar-alt'];
-                    $actionButtons[] = ['label' => 'Tambahkan ke Jadwal', 'url' => '#', 'icon' => 'fa-plus-circle'];
-                } else {
-                    $actionButtons[] = ['label' => 'Lihat Detail', 'url' => $notification->action_url ?? $notification->link ?? '#', 'icon' => 'fa-arrow-right'];
-                }
-            @endphp
+                {{-- Kiri: sekunder --}}
+                <div class="flex flex-wrap items-center gap-2">
 
-            @if(count($actionButtons) > 0)
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Tindakan</h3>
-                    <div class="flex flex-wrap gap-2">
-                        @foreach($actionButtons as $btn)
-                            <a href="{{ $btn['url'] }}" class="inline-flex items-center px-4 py-2 {{ $btn['class'] ?? 'bg-blue-600 hover:bg-blue-700' }} text-white rounded-lg transition text-sm shadow-md">
-                                <i class="fas {{ $btn['icon'] }} mr-2"></i> {{ $btn['label'] }}
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
-            {{-- Lampiran (jika ada) --}}
-            @if($notification->data && isset($notification->data['attachment']))
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Lampiran</h3>
-                    <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                        <div class="flex items-center gap-3">
-                            <i class="fas fa-file-pdf text-red-500 text-2xl"></i>
-                            <div>
-                                <p class="text-sm font-medium text-gray-800 dark:text-white">{{ $notification->data['attachment']['name'] ?? 'file' }}</p>
-                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ $notification->data['attachment']['size'] ?? '2.4 MB' }}</p>
-                            </div>
-                        </div>
-                        <div class="flex gap-2">
-                            <a href="#" class="text-blue-600 hover:underline text-sm"><i class="fas fa-eye mr-1"></i> Lihat</a>
-                            <a href="#" class="text-green-600 hover:underline text-sm"><i class="fas fa-download mr-1"></i> Download</a>
-                        </div>
-                    </div>
-                </div>
-            @endif
-
-            {{-- Percakapan Terkait (Mini Chat) --}}
-            @if($conversation && $messages->count() > 0)
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Percakapan Terkait</h3>
-                    <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700 space-y-2 max-h-64 overflow-y-auto">
-                        @foreach($messages as $msg)
-                            <div class="flex items-start gap-2 {{ $msg->sender_id == auth()->id() ? 'justify-end' : '' }}">
-                                @if($msg->sender_id != auth()->id())
-                                    <img src="{{ $msg->sender->avatar_url ? asset('storage/'.$msg->sender->avatar_url) : asset('images/default-avatar.png') }}" class="w-7 h-7 rounded-full object-cover">
-                                @endif
-                                <div class="max-w-[70%] {{ $msg->sender_id == auth()->id() ? 'bg-blue-600 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200' }} rounded-lg px-3 py-2 text-sm">
-                                    <p>{{ $msg->message }}</p>
-                                    <span class="text-[10px] {{ $msg->sender_id == auth()->id() ? 'text-blue-200' : 'text-gray-500' }}">{{ $msg->created_at->format('H:i') }}</span>
-                                </div>
-                                @if($msg->sender_id == auth()->id())
-                                    <img src="{{ auth()->user()->avatar_url ? asset('storage/'.auth()->user()->avatar_url) : asset('images/default-avatar.png') }}" class="w-7 h-7 rounded-full object-cover">
-                                @endif
-                            </div>
-                        @endforeach
-                    </div>
-                    {{-- Form balas cepat --}}
-                    <div class="mt-2 flex gap-2">
-                        <input type="text" placeholder="Tulis balasan..." class="flex-1 px-3 py-2 border rounded-lg dark:bg-gray-700 dark:border-gray-600 text-sm" id="quick_reply">
-                        <button onclick="sendQuickReply({{ $conversation->id }})" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition text-sm">
-                            <i class="fas fa-paper-plane"></i>
-                        </button>
-                    </div>
-                </div>
-            @endif
-
-            {{-- Notifikasi Terkait --}}
-            @if($relatedNotifications->count() > 0)
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Notifikasi Terkait</h3>
-                    <div class="space-y-2">
-                        @foreach($relatedNotifications as $rel)
-                            <a href="{{ route('owner.notifications.show', $rel->id) }}" class="block p-3 bg-gray-50 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition">
-                                <div class="flex items-center gap-3">
-                                    <i class="{{ $rel->icon }} text-sm text-gray-500"></i>
-                                    <div class="flex-1">
-                                        <p class="text-sm font-medium text-gray-800 dark:text-white">{{ $rel->title }}</p>
-                                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $rel->created_at->diffForHumans() }}</p>
-                                    </div>
-                                    <i class="fas fa-chevron-right text-xs text-gray-400"></i>
-                                </div>
-                            </a>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
-            {{-- Riwayat Aktivitas (dari data) --}}
-            @if($notification->data && isset($notification->data['history']))
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Riwayat Aktivitas</h3>
-                    <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700 space-y-1 text-sm">
-                        @foreach($notification->data['history'] as $item)
-                            <div class="flex items-start gap-2">
-                                <span class="text-xs text-gray-400 w-24 flex-shrink-0">{{ $item['time'] ?? '' }}</span>
-                                <span class="text-gray-700 dark:text-gray-300">{{ $item['description'] ?? '' }}</span>
-                            </div>
-                        @endforeach
-                    </div>
-                </div>
-            @endif
-
-            {{-- Data Tambahan --}}
-            @if($notification->data && !isset($notification->data['attachment']) && !isset($notification->data['history']))
-                <div>
-                    <h3 class="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">Data Tambahan</h3>
-                    <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 overflow-x-auto">
-                        <pre class="whitespace-pre-wrap">{{ json_encode($notification->data, JSON_PRETTY_PRINT) }}</pre>
-                    </div>
-                </div>
-            @endif
-        </div>
-
-        {{-- Footer --}}
-        <div class="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-between flex-wrap gap-2">
-            <div class="flex gap-2">
-                @if($notification->is_archived)
-                    <form action="{{ route('owner.notifications.unarchive', $notification->id) }}" method="POST">
+                    {{-- Star --}}
+                    <form action="{{ route('owner.notifications.toggle-star', $notif->id) }}"
+                          method="POST" class="inline">
                         @csrf
-                        <button type="submit" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition text-sm">
-                            <i class="fas fa-undo mr-2"></i> Kembalikan dari Arsip
+                        <button type="submit"
+                                class="px-3 py-2 rounded-xl text-xs font-bold
+                                       border transition inline-flex items-center gap-1.5
+                                       {{ $isStarred
+                                           ? 'text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700'
+                                           : 'text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700' }}">
+                            <i class="fas fa-star text-[11px]"></i>
+                            {{ $isStarred ? 'Batal Favorit' : 'Favorit' }}
+                        </button>
+                    </form>
+
+                    {{-- Archive --}}
+                    @if($isArchived)
+                        <form action="{{ route('owner.notifications.unarchive', $notif->id) }}"
+                              method="POST" class="inline">
+                            @csrf
+                            <button type="submit"
+                                    class="px-3 py-2 rounded-xl text-xs font-bold
+                                           text-slate-600 dark:text-slate-300
+                                           border border-slate-300 dark:border-slate-600
+                                           hover:bg-slate-100 dark:hover:bg-slate-700
+                                           transition inline-flex items-center gap-1.5">
+                                <i class="fas fa-box-open text-[11px]"></i>
+                                Kembalikan
+                            </button>
+                        </form>
+                    @else
+                        <form action="{{ route('owner.notifications.archive', $notif->id) }}"
+                              method="POST" class="inline">
+                            @csrf
+                            <button type="submit"
+                                    class="px-3 py-2 rounded-xl text-xs font-bold
+                                           text-slate-600 dark:text-slate-300
+                                           border border-slate-300 dark:border-slate-600
+                                           hover:bg-slate-100 dark:hover:bg-slate-700
+                                           transition inline-flex items-center gap-1.5">
+                                <i class="fas fa-box-archive text-[11px]"></i>
+                                Arsipkan
+                            </button>
+                        </form>
+                    @endif
+
+                    {{-- Actioned --}}
+                    @if($notif->requires_action && ! $isActioned)
+                        <form action="{{ route('owner.notifications.actioned', $notif->id) }}"
+                              method="POST" class="inline">
+                            @csrf
+                            <button type="submit"
+                                    class="px-3 py-2 rounded-xl text-xs font-bold
+                                           bg-emerald-600 hover:bg-emerald-700 text-white
+                                           transition inline-flex items-center gap-1.5 shadow-sm">
+                                <i class="fas fa-check-double text-[11px]"></i>
+                                Tandai Sudah Ditangani
+                            </button>
+                        </form>
+                    @endif
+                </div>
+
+                {{-- Kanan: hapus --}}
+                @if(! $isUnread)
+                    <form action="{{ route('owner.notifications.destroy', $notif->id) }}"
+                          method="POST"
+                          onsubmit="return confirm('Hapus notifikasi ini secara permanen?');">
+                        @csrf @method('DELETE')
+                        <button type="submit"
+                                class="px-3 py-2 rounded-xl text-xs font-bold
+                                       bg-rose-600 hover:bg-rose-700 text-white
+                                       transition inline-flex items-center gap-1.5 shadow-sm">
+                            <i class="fas fa-trash text-[11px]"></i>
+                            Hapus
                         </button>
                     </form>
                 @endif
             </div>
-            <form action="{{ route('owner.notifications.destroy', $notification->id) }}" method="POST" onsubmit="return confirm('Hapus notifikasi ini secara permanen?')">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition text-sm shadow-md shadow-red-500/20">
-                    <i class="fas fa-trash mr-2"></i> Hapus Permanen
-                </button>
-            </form>
         </div>
+
+        {{-- ═════════ AUTO-MARK AS READ ═════════ --}}
+        @if($isUnread)
+            <script>
+                // Auto-mark as read 1.2 detik setelah halaman dibuka
+                setTimeout(() => {
+                    fetch('{{ route('owner.notifications.read', $notif->id) }}', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                        },
+                        credentials: 'same-origin',
+                    }).catch(() => {});
+                }, 1200);
+            </script>
+        @endif
+
     </div>
 </div>
-
-@push('scripts')
-<script>
-    function sendQuickReply(conversationId) {
-        const input = document.getElementById('quick_reply');
-        const message = input.value.trim();
-        if (!message) return;
-
-        fetch('{{ route("owner.chats.send") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify({
-                conversation_id: conversationId,
-                message: message
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                input.value = '';
-                location.reload();
-            } else {
-                alert('Gagal mengirim pesan.');
-            }
-        })
-        .catch(() => alert('Terjadi kesalahan.'));
-    }
-</script>
-@endpush
 @endsection

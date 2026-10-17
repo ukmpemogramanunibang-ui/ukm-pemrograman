@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Owner;
 use App\Http\Controllers\Controller;
 use App\Models\Room;
 use App\Models\RoomSchedule;
+use App\Models\ScheduleActivity;      // ✅ TAMBAHKAN INI
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -58,137 +59,429 @@ class ScheduleController extends Controller
     /**
      * Tampilkan form upload jadwal.
      */
-    public function uploadForm()
-    {
-        $rooms = Room::whereNull('deleted_at')->orderBy('name')->get();
-        return view('owner.schedules.upload', compact('rooms'));
+public function uploadForm()
+{
+    $rooms = Room::whereNull('deleted_at')->orderBy('name')->get();
+
+    // ═══════════════════════════════════════════════════════════
+    // Helper: coba beberapa candidate namespace untuk model
+    // ═══════════════════════════════════════════════════════════
+    $tryLoad = function (array $candidates, array $columns = ['id', 'name']) {
+        foreach ($candidates as $class) {
+            if (! class_exists($class)) continue;
+
+            try {
+                return $class::query()
+                    ->orderBy('name')
+                    ->get($columns);
+            } catch (\Throwable $e) {
+                \Log::warning('[ScheduleUpload] Gagal load ' . $class, [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+        return collect();
+    };
+
+    // ── Kelompok (coba beberapa namespace)
+    $kelompokOptions = $tryLoad([
+        \App\Models\Group::class,
+        'App\Models\Kelompok',
+        'App\Models\Groups\Group',
+    ]);
+
+    // ── Generasi
+    $generasiOptions = $tryLoad([
+        \App\Models\Generation::class,
+        'App\Models\Generations\Generation',
+        'App\Models\Financial\Generation',
+    ]);
+
+    // ── Pengurus / Level (dari 2,3,4)
+    $pengurusOptions = collect();
+    if (class_exists(\App\Models\Level::class)) {
+        try {
+            $pengurusOptions = \App\Models\Level::query()
+                ->whereIn('id', [2, 3, 4])
+                ->orderBy('id')
+                ->get(['id', 'name']);
+        } catch (\Throwable $e) {
+            \Log::warning('[ScheduleUpload] Gagal load Level (pengurus)', [
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
+    // ── LMS Group
+    $lmsGroupOptions = $tryLoad([
+        \App\Models\Lms\LmsGroup::class,
+        'App\Models\LmsGroup',
+    ]);
+
+    // ── Role (semua level)
+    $roleOptions = collect();
+    if (class_exists(\App\Models\Level::class)) {
+        try {
+            $roleOptions = \App\Models\Level::query()
+                ->orderBy('id')
+                ->get(['id', 'name']);
+        } catch (\Throwable $e) {
+            \Log::warning('[ScheduleUpload] Gagal load Level (role)', [
+                'error' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    return view('owner.schedules.upload', compact(
+        'rooms',
+        'kelompokOptions',
+        'generasiOptions',
+        'pengurusOptions',
+        'lmsGroupOptions',
+        'roleOptions'
+    ));
+}
     /**
      * Simpan jadwal dari form upload.
      */
-    public function uploadStore(Request $request)
-    {
-        $validated = $request->validate([
-            'room_id'          => 'required|exists:rooms,id',
-            'title'            => 'required|string|max:255',
-            'academic_year'    => 'nullable|string|max:20',
-            'semester'         => 'nullable|string|max:50',
-            'schedule_type'    => 'nullable|string|max:50',
-            'notes'            => 'nullable|string',
-            'outside_operational_reason' => 'nullable|string|required_if:has_outside,true',
-            'schedules'        => 'required|array|min:1',
-            'schedules.*.enabled' => 'nullable|boolean',
-            'schedules.*.person' => 'nullable|string|max:255',
-            'schedules.*.title'   => 'nullable|string|max:255',
-            'schedules.*.start_time' => 'nullable|date_format:H:i',
-            'schedules.*.end_time'   => 'nullable|date_format:H:i|after:schedules.*.start_time',
-            'schedules.*.activity_type' => 'nullable|string|max:100',
-            'schedules.*.description'   => 'nullable|string',
-            'schedule_images'    => 'nullable|array|max:4',
-            'schedule_images.*'  => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+public function uploadStore(Request $request)
+{
+    /* ── 1. VALIDASI ────────────────────────────────────────── */
+    $validated = $request->validate([
+        'room_id'          => 'required|exists:rooms,id',
+        'title'            => 'required|string|max:255',
+        'academic_year'    => 'nullable|string|max:20',
+        'schedule_type'    => 'required|in:weekly,special,event',
+        'semester_start'   => 'required|string|max:50',
+        'semester_end'     => 'required|string|max:50',
+        'notes'            => 'nullable|string',
+        'outside_operational_reason' => 'nullable|string',
+
+        'audience_type'    => 'required|in:all,kelompok,generasi,pengurus,lms_group,role',
+        'audience_ids'     => 'nullable|array',
+        'audience_ids.*'   => 'integer',
+
+        'attendance_mode'         => 'required|in:none,digital,upload',
+        'auto_create_attendance'  => 'nullable|boolean',
+        'requires_review'         => 'nullable|boolean',
+
+        // ── Multi-tahap ──
+        'schedules'                                  => 'required|array|min:1',
+        'schedules.*.enabled'                        => 'nullable|boolean',
+        'schedules.*.activities'                     => 'nullable|array',
+        'schedules.*.activities.*.stage_name'        => 'nullable|string|max:255',
+        'schedules.*.activities.*.activity_type'     => 'required|string|max:50',
+        'schedules.*.activities.*.start_time'        => 'required|date_format:H:i',
+        'schedules.*.activities.*.end_time'          => 'required|date_format:H:i',
+        'schedules.*.activities.*.person'            => 'nullable|string|max:255',
+        'schedules.*.activities.*.generation_ids'    => 'nullable|array',
+        'schedules.*.activities.*.generation_ids.*'  => 'integer',
+        'schedules.*.activities.*.kelompok_ids'      => 'nullable|array',
+        'schedules.*.activities.*.kelompok_ids.*'    => 'integer',
+        'schedules.*.activities.*.description'       => 'nullable|string|max:2000',
+
+        'schedule_images'   => 'nullable|array|max:4',
+        'schedule_images.*' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+    ]);
+
+    /* ── 2. AUDIENCE CHECK ──────────────────────────────────── */
+    $audienceType = $validated['audience_type'];
+    $audienceIds  = $validated['audience_ids'] ?? [];
+
+    if ($audienceType !== 'all' && empty($audienceIds)) {
+        return back()->withInput()->withErrors([
+            'audience_ids' => 'Pilih minimal satu target untuk audience "' . $audienceType . '".',
         ]);
-
-        $roomId = $validated['room_id'];
-        $defaultTitle = $validated['title'];
-        $notes = $validated['notes'] ?? '';
-        $outsideReason = $validated['outside_operational_reason'] ?? '';
-        $academicYear = $validated['academic_year'] ?? '';
-        $semester = $validated['semester'] ?? '';
-        $scheduleType = $validated['schedule_type'] ?? 'weekly';
-
-        // Upload gambar
-        $imagePaths = [];
-        if ($request->hasFile('schedule_images')) {
-            foreach ($request->file('schedule_images') as $image) {
-                $filename = Str::uuid() . '.' . $image->getClientOriginalExtension();
-                $path = $image->storeAs('schedules/images', $filename, 'public');
-                $imagePaths[] = $path;
-            }
-        }
-
-        $created = 0;
-        $errors = [];
-
-        foreach ($request->input('schedules', []) as $dayKey => $dayData) {
-            if (empty($dayData['enabled']) || $dayData['enabled'] != 1) {
-                continue;
-            }
-
-            $title = !empty($dayData['title']) ? $dayData['title'] : $defaultTitle;
-            $person = $dayData['person'] ?? '';
-            $startTime = $dayData['start_time'] ?? null;
-            $endTime = $dayData['end_time'] ?? null;
-            $activityType = $dayData['activity_type'] ?? 'Umum';
-            $description = $dayData['description'] ?? '';
-
-            if (empty($title) || empty($startTime) || empty($endTime)) {
-                $errors[] = "Hari {$this->days[$dayKey]}: Judul, jam mulai, dan jam selesai wajib diisi.";
-                continue;
-            }
-
-            // Konversi ke datetime
-            $dayNumber = array_search($dayKey, array_keys($this->days)) + 1;
-            $date = now()->startOfWeek()->addDays($dayNumber - 1);
-            $startDateTime = $date->copy()->setTimeFromTimeString($startTime);
-            $endDateTime = $date->copy()->setTimeFromTimeString($endTime);
-
-            if ($endDateTime->lt($startDateTime)) {
-                $endDateTime->addDay();
-            }
-
-            // Cek apakah di luar jam operasional (jika ada alasan, tetap bisa)
-            $isOutside = $this->isOutsideOperational($roomId, $dayKey, $startTime, $endTime);
-            if ($isOutside && empty($outsideReason)) {
-                $errors[] = "Hari {$this->days[$dayKey]}: Jadwal di luar jam operasional. Alasan wajib diisi.";
-                continue;
-            }
-
-            $data = [
-                'room_id'            => $roomId,
-                'created_by'         => auth()->id(),
-                'title'              => $title,
-                'activity_type'      => $activityType,
-                'description'        => trim($description . 
-                    ($person ? " (Pengguna: $person)" : '') . 
-                    ($notes ? "\nCatatan: $notes" : '') . 
-                    ($outsideReason ? "\nAlasan di luar jam: $outsideReason" : '') . 
-                    ($academicYear ? "\nTahun Akademik: $academicYear" : '') . 
-                    ($semester ? "\nSemester: $semester" : '') . 
-                    ($scheduleType ? "\nTipe Jadwal: $scheduleType" : '')),
-                'start_datetime'     => $startDateTime,
-                'end_datetime'       => $endDateTime,
-                'recurrence_type'    => 'Mingguan',
-                'recurrence_days'    => [$dayKey],
-                'end_date'           => now()->addMonths(6),
-                'requires_attendance'=> false,
-                'status'             => 'Aktif',
-                'images'             => $imagePaths ? json_encode($imagePaths) : null, // opsional, jika kolom ada
-            ];
-
-            try {
-                RoomSchedule::create($data);
-                $created++;
-            } catch (\Exception $e) {
-                $errors[] = "Hari {$this->days[$dayKey]}: Gagal menyimpan - " . $e->getMessage();
-            }
-        }
-
-        if ($created === 0) {
-            return redirect()->back()
-                ->withErrors($errors ?: ['Tidak ada jadwal yang berhasil disimpan. Pastikan minimal satu hari diaktifkan dan diisi dengan benar.'])
-                ->withInput();
-        }
-
-        if (!empty($errors)) {
-            return redirect()->route('owner.schedules.index')
-                ->with('warning', "⚠️ $created jadwal berhasil dibuat, tetapi ada beberapa masalah: " . implode('; ', $errors));
-        }
-
-        return redirect()->route('owner.schedules.index')
-            ->with('success', "✅ $created jadwal berhasil ditambahkan.");
     }
 
+    $audienceCount = $this->countAudience($audienceType, $audienceIds);
+
+    /* ── 3. UPLOAD GAMBAR ───────────────────────────────────── */
+    $imagePaths = [];
+    if ($request->hasFile('schedule_images')) {
+        foreach ($request->file('schedule_images') as $image) {
+            $filename = \Illuminate\Support\Str::uuid() . '.' . $image->getClientOriginalExtension();
+            $imagePaths[] = $image->storeAs('schedules/images', $filename, 'public');
+        }
+    }
+
+    /* ── 4. AMBIL SEMUA KEGIATAN DARI SEMUA HARI ────────────── */
+    $allActivities = [];        // ['monday' => [ [act], [act] ], ...]
+    $firstActivity = null;
+
+    foreach ($validated['schedules'] as $dayKey => $day) {
+        if (empty($day['enabled']) || empty($day['activities'])) {
+            continue;
+        }
+        foreach ($day['activities'] as $act) {
+            $allActivities[$dayKey][] = $act;
+            if (! $firstActivity) {
+                $firstActivity = ['day' => $dayKey] + $act;
+            }
+        }
+    }
+
+    if (empty($allActivities) || ! $firstActivity) {
+        return back()->withInput()
+            ->with('warning', 'Minimal 1 hari aktif dengan 1 kegiatan wajib diisi.');
+    }
+
+    /* ── 5. TENTUKAN start_datetime & end_datetime UTAMA ────── */
+    // Pakai kegiatan paling awal untuk start, paling akhir untuk end
+    $dayOffset = fn ($d) => [
+        'monday' => 0, 'tuesday' => 1, 'wednesday' => 2,
+        'thursday' => 3, 'friday' => 4, 'saturday' => 5, 'sunday' => 6,
+    ][$d] ?? 0;
+
+    $weekStart = now()->startOfWeek();
+
+    $earliest = null; $latest = null;
+    foreach ($allActivities as $dayKey => $acts) {
+        foreach ($acts as $a) {
+            $date = $weekStart->copy()->addDays($dayOffset($dayKey));
+            $s = $date->copy()->setTimeFromTimeString($a['start_time']);
+            $e = $date->copy()->setTimeFromTimeString($a['end_time']);
+            if ($e->lt($s)) $e->addDay();
+            if (! $earliest || $s->lt($earliest)) $earliest = $s;
+            if (! $latest   || $e->gt($latest))   $latest   = $e;
+        }
+    }
+
+    /* ── 6. TRANSAKSI ───────────────────────────────────────── */
+    \DB::beginTransaction();
+    try {
+        $schedule = RoomSchedule::create([
+            'room_id'         => $validated['room_id'],
+            'created_by'      => auth()->id(),
+            'title'           => $validated['title'],
+
+            // Ambil dari kegiatan pertama sebagai ringkasan
+            'activity_type'   => $firstActivity['activity_type'] ?? 'Umum',
+            'description'     => $this->buildDescription($validated, $firstActivity, $allActivities),
+
+            'recurrence_type' => 'Mingguan',
+            'recurrence_days' => array_keys($allActivities),
+            'start_datetime'  => $earliest,
+            'end_datetime'    => $latest,
+            'end_date'        => now()->addMonths(6),
+            'status'          => 'Aktif',
+            'images'          => $imagePaths ?: null,
+
+            'semester'        => $validated['semester_start'],   // kompat
+            'semester_start'  => $validated['semester_start'],
+            'semester_end'    => $validated['semester_end'],
+            'academic_year'   => $validated['academic_year'] ?? null,
+            'schedule_type'   => $validated['schedule_type'],
+
+            'audience_type'   => $audienceType,
+            'audience_ids'    => $audienceIds,
+            'audience_count'  => $audienceCount,
+
+            'attendance_mode'         => $validated['attendance_mode'],
+            'auto_create_attendance'  => (bool) ($validated['auto_create_attendance'] ?? false),
+            'requires_review'         => (bool) ($validated['requires_review'] ?? true),
+
+            'outside_operational_reason' => $validated['outside_operational_reason'] ?? null,
+            'notes'                      => $validated['notes'] ?? null,
+        ]);
+
+        /* ── 6a. Simpan semua kegiatan (multi-tahap) ── */
+        foreach ($allActivities as $dayKey => $acts) {
+            foreach ($acts as $idx => $act) {
+                $date = $weekStart->copy()->addDays($dayOffset($dayKey));
+                $s = $date->copy()->setTimeFromTimeString($act['start_time']);
+                $e = $date->copy()->setTimeFromTimeString($act['end_time']);
+                if ($e->lt($s)) $e->addDay();
+
+                ScheduleActivity::create([
+                    'schedule_id'    => $schedule->id,
+                    'day'            => $dayKey,
+                    'stage'          => $idx + 1,
+                    'stage_name'     => $act['stage_name'] ?? null,
+                    'activity_type'  => $act['activity_type'],
+                    'start_time'     => $act['start_time'],
+                    'end_time'       => $act['end_time'],
+                    'start_datetime' => $s,
+                    'end_datetime'   => $e,
+                    'person'         => $act['person'] ?? null,
+                    'generation_ids' => $act['generation_ids'] ?? [],
+                    'kelompok_ids'   => $act['kelompok_ids'] ?? [],
+                    'description'    => $act['description'] ?? null,
+                ]);
+            }
+        }
+
+        /* ── 6b. Auto create attendance session ── */
+        if ($schedule->auto_create_attendance && $schedule->attendance_mode !== 'none') {
+            $sessionId = $this->createAttendanceSession($schedule);
+            if ($sessionId) {
+                $schedule->update(['attendance_session_id' => $sessionId]);
+            }
+        }
+
+        \DB::commit();
+    } catch (\Throwable $e) {
+        \DB::rollBack();
+        \Log::error('[ScheduleStore] Gagal', [
+            'message' => $e->getMessage(),
+            'trace'   => $e->getTraceAsString(),
+        ]);
+        return back()->withInput()
+            ->with('warning', 'Gagal menyimpan jadwal: ' . $e->getMessage());
+    }
+
+    $msg = "✅ Jadwal '{$schedule->title}' berhasil dipublikasikan";
+    $msg .= " ({$schedule->activities()->count()} kegiatan)";
+    if ($audienceCount > 0) $msg .= " untuk {$audienceCount} penerima";
+    $msg .= '.';
+
+    return redirect()->route('owner.schedules.index')->with('success', $msg);
+}
+
+/* ── Helper: gabungkan info tambahan ke description ── */
+private function buildDescription(array $validated, array $first, array $all): string
+{
+    $parts = [];
+    if (! empty($validated['academic_year'])) $parts[] = "Tahun Akademik: {$validated['academic_year']}";
+    if (! empty($validated['semester_start'])) $parts[] = "Semester: {$validated['semester_start']} s.d. {$validated['semester_end']}";
+    if (! empty($validated['notes']))           $parts[] = "Catatan: {$validated['notes']}";
+    if (! empty($validated['outside_operational_reason']))
+        $parts[] = "Alasan di luar jam: {$validated['outside_operational_reason']}";
+
+    $dayLabel = [
+        'monday' => 'Senin', 'tuesday' => 'Selasa', 'wednesday' => 'Rabu',
+        'thursday' => 'Kamis', 'friday' => 'Jumat', 'saturday' => 'Sabtu', 'sunday' => 'Minggu',
+    ];
+
+    $parts[] = "Total kegiatan: " . array_sum(array_map('count', $all)) . " tahap";
+    $parts[] = "Hari aktif: " . implode(', ', array_map(fn ($d) => $dayLabel[$d] ?? $d, array_keys($all)));
+
+    return implode("\n", $parts);
+}
+
+/* ═══════════════════════════════════════════════════════════
+ | HELPER: Count audience
+ * ═══════════════════════════════════════════════════════════ */
+private function countAudience(string $type, array $ids): int
+{
+    // Base query
+    $base = \App\Models\User::query()
+        ->where('is_active', true)
+        ->whereNull('deleted_at');
+
+    if ($type === 'all' || empty($ids)) {
+        return (clone $base)->where('level_id', '!=', 1)->count();
+    }
+
+    try {
+        match ($type) {
+            'kelompok' => method_exists(\App\Models\User::class, 'groups')
+                ? $base->whereHas('groups', fn ($x) => $x->whereIn('groups.id', $ids))->count()
+                : 0,
+
+            'generasi' => \Schema::hasColumn('users', 'generation_id')
+                ? $base->whereIn('generation_id', $ids)->count()
+                : 0,
+
+            'pengurus', 'role' => $base->whereIn('level_id', $ids)->count(),
+
+            'lms_group' => method_exists(\App\Models\User::class, 'lmsGroups')
+                ? $base->whereHas('lmsGroups', fn ($x) => $x->whereIn('lms_groups.id', $ids))->count()
+                : 0,
+
+            default => 0,
+        };
+    } catch (\Throwable $e) {
+        \Log::warning('[ScheduleUpload] countAudience gagal', [
+            'type'  => $type,
+            'error' => $e->getMessage(),
+        ]);
+        return 0;
+    }
+
+    // Return default (di-match sebenarnya sudah return)
+    return 0;
+}
+/* ═══════════════════════════════════════════════════════════
+ | HELPER: Create attendance session from schedule
+ * ═══════════════════════════════════════════════════════════ */
+private function createAttendanceSession(RoomSchedule $schedule): ?int
+{
+    // Cek class ada
+    $sessionClass = 'App\Models\Attendance\AttendanceSession';
+    if (! class_exists($sessionClass)) {
+        $sessionClass = 'App\Models\AttendanceSession';
+        if (! class_exists($sessionClass)) {
+            \Log::warning('[ScheduleStore] AttendanceSession model tidak ada');
+            return null;
+        }
+    }
+
+    // Cek tabel attendance_sessions ada
+    if (! \Schema::hasTable('attendance_sessions')) {
+        \Log::warning('[ScheduleStore] Tabel attendance_sessions tidak ada');
+        return null;
+    }
+
+    try {
+        $payload = [
+            'title'              => $schedule->title,
+            'room_id'            => $schedule->room_id,
+            'scheduled_start_at' => $schedule->start_datetime,
+            'scheduled_end_at'   => $schedule->end_datetime,
+            'attendance_type'    => 'session',
+            'status'             => 'scheduled',
+            'created_by'         => auth()->id(),
+            'timezone'           => 'Asia/Jakarta',
+        ];
+
+        // Tambahkan kolom opsional kalau ada
+        if (\Schema::hasColumn('attendance_sessions', 'room_schedule_id')) {
+            $payload['room_schedule_id'] = $schedule->id;
+        }
+        if (\Schema::hasColumn('attendance_sessions', 'audience_type')) {
+            $payload['audience_type'] = $schedule->audience_type;
+        }
+        if (\Schema::hasColumn('attendance_sessions', 'audience_ids')) {
+            $payload['audience_ids'] = $schedule->audience_ids;
+        }
+        if (\Schema::hasColumn('attendance_sessions', 'attendance_mode')) {
+            $payload['attendance_mode'] = $schedule->attendance_mode;
+        }
+        if (\Schema::hasColumn('attendance_sessions', 'source')) {
+            $payload['source'] = 'schedule';
+        }
+
+        $session = $sessionClass::create($payload);
+
+        // Pre-assign target users (kalau tabelnya ada)
+        if (\Schema::hasTable('attendance_session_targets')) {
+            $users = $schedule->resolveAudience();
+            foreach ($users as $user) {
+                try {
+                    \DB::table('attendance_session_targets')->insert([
+                        'session_id' => $session->id,
+                        'user_id'    => $user->id,
+                        'status'     => 'pending',
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                } catch (\Throwable $e) {
+                    // skip individual, jangan block
+                }
+            }
+        }
+
+        return $session->id;
+
+    } catch (\Throwable $e) {
+        \Log::warning('[ScheduleStore] Auto-create attendance gagal', [
+            'schedule_id' => $schedule->id,
+            'error'       => $e->getMessage(),
+        ]);
+        return null;
+    }
+}
     /**
      * Tampilkan form edit jadwal.
      */

@@ -1,113 +1,122 @@
+{{-- resources/views/layouts/roles/pengurus.blade.php --}}
 <!DOCTYPE html>
 <html lang="id" class="scroll-smooth">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-    <title>@yield('title', 'Pengurus Dashboard – UNICODE')</title>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        midnight: '#050A30',
-                        deepblue: '#0B1F6B',
-                        electric: '#2563EB',
-                        cyan: '#00D9FF',
-                        violet: '#9333EA',
-                        teal: '#14B8A6',
-                    },
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                    },
-                }
-            }
-        }
-    </script>
-    <style>
-        ::-webkit-scrollbar { width: 5px; height: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .dark ::-webkit-scrollbar-thumb { background: #475569; }
-
-        .sidebar-transition {
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .sidebar-collapsed { width: 72px !important; }
-        .sidebar-collapsed .menu-text { display: none !important; }
-        .sidebar-collapsed .menu-icon { margin-right: 0 !important; }
-        .sidebar-collapsed .menu-item { justify-content: center !important; padding: 0.7rem 0 !important; }
-        .sidebar-collapsed .logo-text { display: none !important; }
-        .sidebar-collapsed .logo-container { justify-content: center !important; }
-        .sidebar-collapsed .sidebar-subtitle { display: none !important; }
-        .sidebar-collapsed .menu-label { display: none !important; }
-
-        .sidebar-mobile {
-            position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            width: 280px;
-            transform: translateX(-100%);
-            z-index: 1000;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        .sidebar-mobile.open { transform: translateX(0); }
-
-        .sidebar-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 999;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-        .sidebar-overlay.active { opacity: 1; pointer-events: auto; }
-
-        .dropdown-enter {
-            animation: slideDown 0.2s ease forwards;
-        }
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-8px) scale(0.96); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        .badge-pulse {
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0% { transform: scale(1); }
-            50% { transform: scale(1.15); }
-            100% { transform: scale(1); }
-        }
-        @supports (padding: max(0px)) {
-            .safe-top { padding-top: max(env(safe-area-inset-top), 0px); }
-            .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 0px); }
-        }
-    </style>
+    @include('partials.roles.pengurus.head')
     @stack('styles')
 </head>
-<body class="bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-200 antialiased">
+<body class="bg-gray-50 dark:bg-slate-950 text-gray-800 dark:text-gray-200 antialiased">
 
-    <div id="sidebar-overlay" class="sidebar-overlay" onclick="closeMobileSidebar()"></div>
+    <div x-data
+         x-effect="document.body.style.overflow = (!$store.sidebar.isDesktop && $store.sidebar.mobileOpen) ? 'hidden' : ''">
 
-    <div class="flex h-screen overflow-hidden">
         @include('partials.roles.pengurus.sidebar')
 
-        <div id="main-content" class="flex-1 flex flex-col h-screen overflow-hidden w-full min-w-0">
+        <div id="mainContent"
+             class="min-h-screen flex flex-col
+                    transition-[margin] duration-300 ease-in-out will-change-[margin]"
+             :class="{
+                 'md:ml-80':  $store.sidebar.desktopOpen,
+                 'md:ml-0':  !$store.sidebar.desktopOpen
+             }">
+
             @include('partials.roles.pengurus.header')
-            <main class="flex-1 overflow-y-auto p-3 md:p-6 scroll-smooth bg-gray-50 dark:bg-gray-900">
+
+            @if(!empty($isImpersonating))
+                <div class="bg-amber-50 dark:bg-amber-900/20
+                            border-b border-amber-200 dark:border-amber-800
+                            px-4 md:px-6 py-2.5
+                            flex items-center justify-between gap-3 flex-wrap">
+                    <div class="flex items-center gap-2 text-sm
+                                text-amber-800 dark:text-amber-200">
+                        <i class="fas fa-user-shield"></i>
+                        <span>
+                            Anda melihat sebagai
+                            <strong class="font-semibold">{{ $exploreTarget->name ?? 'Pengurus' }}</strong>
+                            ({{ ucfirst($exploreRole ?? 'pengurus') }})
+                        </span>
+                    </div>
+                    <a href="{{ route('exit.impersonation') }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                              text-xs font-semibold
+                              bg-amber-500 hover:bg-amber-600 text-white
+                              transition-all duration-200 active:scale-95">
+                        <i class="fas fa-arrow-left"></i>
+                        Keluar dari Impersonasi
+                    </a>
+                </div>
+            @endif
+
+            <main class="flex-1 p-4 md:p-6">
                 @yield('content')
             </main>
+
             @include('partials.roles.pengurus.footer')
         </div>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    @include('partials.roles.pengurus.logout-modal')
+
+    <script>
+    document.addEventListener('alpine:init', () => {
+        Alpine.store('sidebar', {
+            desktopOpen: (localStorage.getItem('sidebarDesktopOpen') ?? 'true') === 'true',
+            mobileOpen: false,
+            isDesktop: window.matchMedia('(min-width: 768px)').matches,
+            toggle() { this.isDesktop ? this.setDesktop(!this.desktopOpen) : this.setMobile(!this.mobileOpen); },
+            open()   { this.isDesktop ? this.setDesktop(true) : this.setMobile(true); },
+            close()  { this.isDesktop ? this.setDesktop(false) : this.setMobile(false); },
+            setDesktop(val) { this.desktopOpen = !!val; localStorage.setItem('sidebarDesktopOpen', String(this.desktopOpen)); },
+            setMobile(val)  { this.mobileOpen = !!val; },
+        });
+        const store = Alpine.store('sidebar');
+        let rt;
+        window.addEventListener('resize', () => {
+            clearTimeout(rt);
+            rt = setTimeout(() => {
+                const wasDesktop = store.isDesktop;
+                store.isDesktop = window.matchMedia('(min-width: 768px)').matches;
+                if (!wasDesktop && store.isDesktop) store.mobileOpen = false;
+            }, 100);
+        });
+        window.addEventListener('keydown', (e) => {
+            const tag = (document.activeElement?.tagName || '').toUpperCase();
+            const typing = ['INPUT','TEXTAREA','SELECT'].includes(tag) || document.activeElement?.isContentEditable;
+            if (typing) return;
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); store.toggle(); return; }
+            if (e.key === 'Escape' && !store.isDesktop && store.mobileOpen) store.setMobile(false);
+        });
+        document.addEventListener('click', (e) => {
+            if (store.isDesktop || !store.mobileOpen) return;
+            if (e.target.closest('aside a[href]')) store.setMobile(false);
+        });
+    });
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="{{ asset('js/theme.js') }}"></script>
+    <script>
+        window.showLogoutModal = function (event) {
+            if (event) event.preventDefault();
+            const modal = document.getElementById('logout-confirm-modal');
+            if (!modal) return;
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                modal.classList.remove('opacity-0');
+                modal.querySelector('.transform')?.classList.replace('scale-95', 'scale-100');
+            });
+        };
+        window.closeLogoutModal = function () {
+            const modal = document.getElementById('logout-confirm-modal');
+            if (!modal) return;
+            modal.classList.add('opacity-0');
+            modal.querySelector('.transform')?.classList.replace('scale-100', 'scale-95');
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        };
+        document.addEventListener('click', (e) => {
+            const modal = document.getElementById('logout-confirm-modal');
+            if (modal && !modal.classList.contains('hidden') && e.target === modal) window.closeLogoutModal();
+        });
+    </script>
     @stack('scripts')
 </body>
 </html>

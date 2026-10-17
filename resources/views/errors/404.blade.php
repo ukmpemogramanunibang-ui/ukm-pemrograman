@@ -21,10 +21,18 @@
     </p>
 
     <div class="flex flex-wrap gap-4 justify-center">
-        <a href="{{ route('landing') }}" class="px-6 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition">
+        {{-- Fallback-safe: pakai route() kalau ada, hard-link kalau tidak --}}
+        @php
+            $landingUrl = \Illuminate\Support\Facades\Route::has('landing') ? route('landing') : url('/');
+            $loginUrl   = \Illuminate\Support\Facades\Route::has('login')   ? route('login')   : url('/login');
+        @endphp
+
+        <a href="{{ $landingUrl }}"
+           class="px-6 py-3 bg-gray-200 dark:bg-gray-700 rounded-xl text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition">
             <i class="fas fa-arrow-left mr-2"></i> Kembali ke Beranda
         </a>
-        <a href="{{ route('login') }}" class="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-white font-bold hover:scale-105 transition shadow-lg shadow-cyan-500/20">
+        <a href="{{ $loginUrl }}"
+           class="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-xl text-white font-bold hover:scale-105 transition shadow-lg shadow-cyan-500/20">
             <i class="fas fa-sign-in-alt mr-2"></i> Halaman Login
         </a>
     </div>

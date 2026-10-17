@@ -8,6 +8,8 @@ use App\Models\Financial\Invoice;   // ✅ Perbaiki ini
 use App\Models\Announcement;        // Pastikan Announcement ada di sini
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\Financial\FeePlan;
+use App\Services\Financial\FeePlanInvoiceGenerator;
 use Carbon\Carbon;
 
 class InvoiceController extends Controller
@@ -28,6 +30,43 @@ public function index()
     {
         $invoice->load(['user', 'feePlan.generation', 'payments']);
         return view('owner.financial.invoices.show', compact('invoice'));
+    }
+ public function generateFromPlan(Request $request, FeePlan $feePlan)
+    {
+        $period = $request->input('period'); // optional: 2026-10
+
+        $generator = app(FeePlanInvoiceGenerator::class);
+        $preview   = $generator->preview($feePlan, $period);
+
+        return view('owner.financial.invoices.generate-from-plan', [
+            'plan'    => $feePlan,
+            'preview' => $preview,
+        ]);
+    }
+
+    /**
+     * Eksekusi generate invoice.
+     */
+    public function storeFromPlan(Request $request, FeePlan $feePlan)
+    {
+        $period = $request->input('period');
+
+        $generator = app(FeePlanInvoiceGenerator::class);
+        $result    = $generator->generate($feePlan, $period);
+
+        if ($result['created'] === 0) {
+            return back()->with('warning', 'Tidak ada invoice baru yang dibuat. Mungkin semua user sudah ditagih untuk periode ini.');
+        }
+
+        return redirect()
+            ->route('owner.financial.invoices.index')
+            ->with('success', sprintf(
+                '✅ Berhasil generate %d invoice untuk periode %s. Total: Rp %s. (%d user dilewati karena sudah ada invoice)',
+                $result['created'],
+                $result['period'],
+                number_format($result['total_amount'], 0, ',', '.'),
+                $result['skipped']
+            ));
     }
 
     /**

@@ -1,7 +1,11 @@
-<footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 py-2 md:py-3 px-3 md:px-6 text-center text-[10px] md:text-xs text-gray-500 dark:text-gray-400 safe-bottom">
-    <div class="flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2">
-        <span>&copy; {{ date('Y') }} <span class="font-semibold text-cyan-600 dark:text-cyan-400">UNICODE</span> – UKM Pemrograman</span>
-        <span class="hidden md:inline text-gray-300 dark:text-gray-600">|</span>
-        <span class="text-[8px] md:text-[10px] text-gray-400 dark:text-gray-500">Dibangun dengan ❤️ oleh Tim UNICODE</span>
+{{-- resources/views/partials/roles/anggota-ukm/footer.blade.php --}}
+<footer class="h-12 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 md:px-6 text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+    <p>&copy; {{ date('Y') }} <span class="font-semibold text-cyan-500">UNICODE</span> — UKM Pemrograman UNIBANG</p>
+    <div class="hidden sm:flex items-center gap-3">
+        <span class="flex items-center gap-1"><i class="fas fa-code text-cyan-400"></i> v1.0</span>
+        <span class="text-gray-300 dark:text-gray-600">|</span>
+        <span class="flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span> Online
+        </span>
     </div>
 </footer>

@@ -1,162 +1,154 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;                    // ← WAJIB ADA
+use Illuminate\Support\Str;
 
 class Notification extends Model
 {
+    protected $table = 'notifications';
+
+    public $incrementing = false;
+    protected $keyType   = 'string';
+
     protected $fillable = [
-        'user_id', 'sender_id', 'type', 'priority', 'title', 'message',
-        'data', 'link', 'action_url', 'icon', 'color_class',
-        'read_at', 'archived_at', 'expires_at',
-        'reference_type', 'reference_id', 'conversation_id',
-        'is_starred',
+        'id', 'user_id', 'type',
+        'title', 'message', 'icon', 'link',
+        'source', 'type_slug', 'category',
+        'priority', 'severity',
+        'action_url', 'deep_link',
+        'requires_action', 'actioned_at',
+        'actor_id', 'entity_type', 'entity_id',
+        'related_type', 'related_id',
+        'group_key', 'dedup_key',
+        'data',
+        'read_at', 'seen_at', 'starred_at', 'archived_at',
+        'event_type', 'version', 'source_deleted_at',
     ];
 
     protected $casts = [
-        'data' => 'array',
-        'read_at' => 'datetime',
-        'archived_at' => 'datetime',
-        'expires_at' => 'datetime',
-        'is_starred' => 'boolean',
+        'data'              => 'array',
+        'requires_action'   => 'boolean',
+        'read_at'           => 'datetime',
+        'seen_at'           => 'datetime',
+        'starred_at'        => 'datetime',
+        'archived_at'       => 'datetime',
+        'actioned_at'       => 'datetime',
+        'source_deleted_at' => 'datetime',
+        'version'           => 'integer',
     ];
 
-    public function user(): BelongsTo
+    protected static function booted(): void
+    {
+        static::creating(function (self $notif) {
+            if (empty($notif->id)) {
+                $notif->id = (string) Str::uuid();
+            }
+        });
+    }
+
+    /* =========================================================
+     | RELATIONS
+     ========================================================= */
+    public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function sender(): BelongsTo
+    public function actor()
     {
-        return $this->belongsTo(User::class, 'sender_id');
+        return $this->belongsTo(User::class, 'actor_id');
     }
 
-    public function conversation(): BelongsTo
+    /* =========================================================
+     | SCOPES
+     ========================================================= */
+    public function scopeUnread(Builder $q): Builder   { return $q->whereNull('read_at'); }
+    public function scopeRead(Builder $q): Builder     { return $q->whereNotNull('read_at'); }
+    public function scopeStarred(Builder $q): Builder  { return $q->whereNotNull('starred_at'); }
+    public function scopeArchived(Builder $q): Builder { return $q->whereNotNull('archived_at'); }
+    public function scopeActive(Builder $q): Builder   { return $q->whereNull('archived_at'); }
+
+    public function scopeAction(Builder $q): Builder
     {
-        return $this->belongsTo(Conversation::class);
+        return $q->whereIn('priority', ['urgent', 'high'])->whereNull('read_at');
     }
 
-    public function reference()
+    public function scopeForUser(Builder $q, $userId): Builder
     {
-        return $this->morphTo(null, 'reference_type', 'reference_id');
+        return $q->where('user_id', $userId);
     }
 
-    public function scopeUnread($query)
+    /* =========================================================
+     | ACCESSORS
+     ========================================================= */
+    public function getIsReadAttribute(): bool     { return ! is_null($this->read_at); }
+    public function getIsStarredAttribute(): bool  { return ! is_null($this->starred_at); }
+    public function getIsArchivedAttribute(): bool { return ! is_null($this->archived_at); }
+    public function getIsUrgentAttribute(): bool   { return in_array($this->priority, ['urgent', 'high'], true); }
+
+    public function getPriorityColorAttribute(): string
     {
-        return $query->whereNull('read_at');
+        return match ($this->priority) {
+            'urgent' => 'rose',
+            'high'   => 'amber',
+            'low'    => 'gray',
+            default  => 'violet',
+        };
     }
 
-    public function scopeRead($query)
+    /* =========================================================
+     | HELPERS
+     ========================================================= */
+    public function resolveIcon(): string
     {
-        return $query->whereNotNull('read_at');
-    }
+        $raw = $this->getRawOriginal('icon');
+        if (! empty($raw)) return $raw;
 
-    public function scopeActive($query)
-    {
-        return $query->whereNull('archived_at');
-    }
-
-    public function scopeArchived($query)
-    {
-        return $query->whereNotNull('archived_at');
-    }
-
-    public function scopeStarred($query)
-    {
-        return $query->where('is_starred', true);
-    }
-
-    public function scopePriority($query, $priority)
-    {
-        return $query->where('priority', $priority);
-    }
-
-    public function markAsRead(): void
-    {
-        if (is_null($this->read_at)) {
-            $this->update(['read_at' => now()]);
-        }
-    }
-
-    public function markAsArchived(): void
-    {
-        if (is_null($this->archived_at)) {
-            $this->update(['archived_at' => now()]);
-        }
-    }
-
-    public function toggleStar(): void
-    {
-        $this->update(['is_starred' => !$this->is_starred]);
-    }
-
-    public function getIsReadAttribute(): bool
-    {
-        return !is_null($this->read_at);
-    }
-
-    public function getIsArchivedAttribute(): bool
-    {
-        return !is_null($this->archived_at);
-    }
-
-    public function getIsExpiredAttribute(): bool
-    {
-        return $this->expires_at && $this->expires_at < now();
-    }
-
-    public function getColorClassAttribute(): string
-    {
         $map = [
-            'chat'          => 'bg-green-500/20 text-green-400',
-            'task'          => 'bg-blue-500/20 text-blue-400',
-            'announcement'  => 'bg-purple-500/20 text-purple-400',
-            'incoming_mail' => 'bg-cyan-500/20 text-cyan-400',
-            'outgoing_mail' => 'bg-indigo-500/20 text-indigo-400',
-            'minutes'       => 'bg-yellow-500/20 text-yellow-400',
-            'agenda'        => 'bg-orange-500/20 text-orange-400',
-            'room'          => 'bg-pink-500/20 text-pink-400',
-            'booking'       => 'bg-rose-500/20 text-rose-400',
-            'attendance'    => 'bg-emerald-500/20 text-emerald-400',
-            'member'        => 'bg-teal-500/20 text-teal-400',
-            'system'        => 'bg-gray-500/20 text-gray-400',
-            'security'      => 'bg-red-500/20 text-red-400',
-            'default'       => 'bg-gray-500/20 text-gray-400', // ✅ diperbaiki
+            'task.created'   => 'fa-plus-circle',
+            'task.deadline'  => 'fa-hourglass-half',
+            'task.overdue'   => 'fa-exclamation-triangle',
+            'task.submitted' => 'fa-paper-plane',
+            'task.graded'    => 'fa-award',
+            'task.comment'   => 'fa-comment-dots',
+            'task.reminder'  => 'fa-bell',
+            'group.created'  => 'fa-folder-plus',
+            'group.member'   => 'fa-user-plus',
+            'chat.message'   => 'fa-comments',
+            'announcement'   => 'fa-bullhorn',
+            'system'         => 'fa-info-circle',
         ];
-        return $map[$this->type] ?? $map['default'];
+        return $map[$this->category ?? ''] ?? 'fa-bell';
     }
 
-    public function getIconAttribute($value): string
+    public function markAsRead(): bool
     {
-        $map = [
-            'chat'          => 'fas fa-comment-dots',
-            'task'          => 'fas fa-tasks',
-            'announcement'  => 'fas fa-bullhorn',
-            'incoming_mail' => 'fas fa-inbox',
-            'outgoing_mail' => 'fas fa-paper-plane',
-            'minutes'       => 'fas fa-sticky-note',
-            'agenda'        => 'fas fa-calendar-check',
-            'room'          => 'fas fa-door-open',
-            'booking'       => 'fas fa-calendar-plus',
-            'attendance'    => 'fas fa-user-check',
-            'member'        => 'fas fa-user-plus',
-            'system'        => 'fas fa-cog',
-            'security'      => 'fas fa-shield-alt',
-            'default'       => 'fas fa-bell', // ✅ diperbaiki
-        ];
-        return $value ?? ($map[$this->type] ?? 'fas fa-bell');
+        $updates = [];
+        if (is_null($this->seen_at)) $updates['seen_at'] = now();
+        if (is_null($this->read_at)) $updates['read_at'] = now();
+        if (empty($updates)) return true;
+        return $this->forceFill($updates)->save();
     }
 
-    public function getPriorityBadgeAttribute(): string
+    public function toggleStar(): bool
     {
-        $map = [
-            'low'    => 'bg-gray-200 text-gray-600',
-            'normal' => 'bg-blue-100 text-blue-700',
-            'high'   => 'bg-orange-100 text-orange-700',
-            'urgent' => 'bg-red-100 text-red-700',
-        ];
-        return $map[$this->priority] ?? $map['normal'];
+        return $this->forceFill([
+            'starred_at' => $this->starred_at ? null : now(),
+        ])->save();
+    }
+
+    public function archive(): bool
+    {
+        return $this->forceFill(['archived_at' => now()])->save();
+    }
+
+    public function unarchive(): bool
+    {
+        return $this->forceFill(['archived_at' => null])->save();
     }
 }

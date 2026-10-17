@@ -5,34 +5,40 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Traits\HasLinkedNotifications;
 
 class Booking extends Model
 {
-    use HasFactory, SoftDeletes;
-
-    protected $fillable = [
-        'room_id',
-        'user_id',
-        'title',
-        'description',
-        'requester_name',
-        'requester_phone',
-        'start_datetime',
-        'end_datetime',
-        'participants',
-        'status', // pending, conflict, approved, rejected, cancelled, completed, expired
-        'approved_by',
-        'approved_at',
-        'rejected_by',
-        'rejected_at',
-        'rejection_reason',
-        'override_reason',
-        'checkin_at',
-        'checkout_at',
-        'condition_report',
-        'images', // json
-        'documents', // json
-    ];
+    use HasFactory, HasLinkedNotifications, SoftDeletes;
+ protected $notificationIgnoredColumns = ['updated_at', 'view_count'];
+protected $fillable = [
+    'room_id',
+    'user_id',
+    'booking_code',       // ✅ dari migration
+    'title',
+    'description',
+    'requester_type',     // ✅ dari migration
+    'requester_id',       // ✅ dari migration
+    'requester_name',
+    'requester_phone',
+    'participants',
+    'source',             // ✅ dari migration
+    'public_token',       // ✅ dipakai di storeBooking
+    'start_datetime',
+    'end_datetime',
+    'status',
+    'approved_by',
+    'approved_at',
+    'rejected_by',
+    'rejected_at',
+    'rejection_reason',
+    'override_reason',
+    'checkin_at',
+    'checkout_at',
+    'condition_report',
+    'images',
+    'documents',
+];
 
     protected $casts = [
         'start_datetime' => 'datetime',
@@ -44,12 +50,50 @@ class Booking extends Model
         'images' => 'array',
         'documents' => 'array',
     ];
+public function toNotificationPayload(): array
+{
+    $requesterName = $this->user?->name
+        ?? $this->requester_name
+        ?? 'Pengguna';
 
+    $roomName = $this->room?->nama
+        ?? $this->room?->name
+        ?? 'Ruangan';
+
+    return [
+        'title'           => '📅 Booking Ruangan ' . ($this->isDirty('status') ? '(Diperbarui)' : 'Baru'),
+        'message'         => $requesterName . ' mengajukan booking ' . $roomName,
+        'action_url'      => route('owner.bookings.show', $this->id),
+        'source'          => 'booking',
+        'priority'        => $this->status === 'urgent' ? 'urgent' : 'normal',
+        'status'          => $this->status,
+        'requires_action' => in_array($this->status, ['pending', 'review']),
+    ];
+}
+
+    public function notificationRecipients(): array
+    {
+        return \App\Models\User::role(['owner', 'superadmin'])
+            ->where('is_active', true)
+            ->get()
+            ->all();
+    }
     public function room()
     {
         return $this->belongsTo(Room::class);
     }
-
+/* ============================================================
+   Accessor 'requester' — menggantikan relasi yang tidak ada
+   ============================================================ */
+public function getRequesterAttribute(): object
+{
+    return (object) [
+        'type'  => $this->requester_type,
+        'id'    => $this->requester_id,
+        'name'  => $this->requester_name,
+        'phone' => $this->requester_phone,
+    ];
+}
     public function user()
     {
         return $this->belongsTo(User::class);

@@ -224,26 +224,35 @@
                 <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                     @forelse($schedules as $schedule)
                     @php
-                        $dayName = $schedule->start_datetime->isoFormat('dddd');
-                        $dayColors = [
-                            'Senin' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-                            'Selasa' => 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
-                            'Rabu' => 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
-                            'Kamis' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-                            'Jumat' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-                            'Sabtu' => 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
-                            'Minggu' => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-                        ];
-                        $dayColor = $dayColors[$dayName] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-                        $statusColors = [
-                            'Aktif' => 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-                            'Selesai' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-                            'Dibatalkan' => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-                        ];
-                        $statusColor = $statusColors[$schedule->status] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-                        $images = is_array($schedule->images) ? $schedule->images : json_decode($schedule->images, true);
-                        $firstImage = $images[0] ?? null;
-                    @endphp
+    $dayName = $schedule->start_datetime->isoFormat('dddd');
+    $dayColors = [
+        'Senin' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        'Selasa' => 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+        'Rabu' => 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300',
+        'Kamis' => 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+        'Jumat' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+        'Sabtu' => 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+        'Minggu' => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+    ];
+    $dayColor = $dayColors[$dayName] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+    $statusColors = [
+        'Aktif' => 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+        'Selesai' => 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+        'Dibatalkan' => 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+    ];
+    $statusColor = $statusColors[$schedule->status] ?? 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+
+    // ✅ Akses images secara aman (tidak memicu MissingAttributeException)
+    $rawImages = $schedule->getAttributes()['images'] ?? null;
+    if (is_array($rawImages)) {
+        $images = $rawImages;
+    } elseif (is_string($rawImages) && $rawImages !== '') {
+        $images = json_decode($rawImages, true) ?: [];
+    } else {
+        $images = [];
+    }
+    $firstImage = $images[0] ?? null;
+@endphp
                     <tr class="schedule-row cursor-pointer" data-href="{{ route('owner.schedules.show', $schedule) }}" tabindex="0">
                         <td class="px-4 py-3 text-center text-xs text-gray-400">{{ $loop->iteration + ($schedules->currentPage() - 1) * $schedules->perPage() }}</td>
                         <td class="px-4 py-3">

@@ -64,7 +64,13 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
         ],
-
+'security' => [
+    'driver' => 'daily',
+    'path'   => storage_path('logs/security.log'),
+    'level'  => 'warning',
+    'days'   => 30,
+    'replace_placeholders' => true,
+],
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),

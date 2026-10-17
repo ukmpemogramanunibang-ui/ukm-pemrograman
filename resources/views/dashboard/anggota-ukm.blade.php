@@ -95,4 +95,5 @@
         </div>
     </div>
 </div>
+@include('partials.dashboard.builder', ['dashboardData' => $dashboardData ?? []])
 @endsection
