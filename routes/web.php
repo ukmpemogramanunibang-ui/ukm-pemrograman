@@ -1627,8 +1627,7 @@ Route::prefix('manajemen-anggota')->name('manajemen-anggota.')->group(function (
     Route::post('/manage-role',   [$ctrl, 'manageRole'])->name('manage-role');
     Route::get('/{id}',           [$ctrl, 'show'])->whereNumber('id')->name('show');
 });
-Route::prefix('ketua/lms')->name('ketua.lms.')->middleware(['auth', 'role:ketua'])->group(function () {
-    // Groups
+Route::prefix('lms')->name('lms.')->group(function () {    // Groups
     Route::get('/groups/create', [\App\Http\Controllers\Owner\Lms\GroupController::class, 'create'])->name('groups.create');
     Route::post('/groups',       [\App\Http\Controllers\Owner\Lms\GroupController::class, 'store'])->name('groups.store');
     Route::get('/groups/{group}', [\App\Http\Controllers\Owner\Lms\GroupController::class, 'show'])
