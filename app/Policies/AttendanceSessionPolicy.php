@@ -4,128 +4,107 @@ namespace App\Policies;
 
 use App\Models\AttendanceSession;
 use App\Models\User;
+use App\Services\OrganizationContext;
 
 class AttendanceSessionPolicy
 {
     /**
-     * Level roles yang diizinkan (bisa disesuaikan dengan sistem Anda).
+     * Cek akses baca berdasarkan keanggotaan di organisasi terkait sesi.
      */
-    protected function role(User $user): string
+    public function view(User $user, AttendanceSession $session): bool
     {
-        return strtolower($user->level?->slug ?? $user->level?->name ?? 'guest');
+        if (in_array((int) $user->level_id, [1, 2])) return true;
+
+        return $user->organizationMemberships()
+            ->where('organization_id', $session->organization_id)
+            ->where('membership_status', 'active')
+            ->exists();
     }
 
-    protected function isOwner(User $u): bool      { return in_array($this->role($u), ['owner']); }
-    protected function isSuperadmin(User $u): bool { return in_array($this->role($u), ['superadmin']); }
-    protected function isKetua(User $u): bool      { return in_array($this->role($u), ['ketua']); }
-    protected function isPengurus(User $u): bool   { return in_array($this->role($u), ['pengurus']); }
-
-    /* ============================================================
-     * BASIC CRUD
-     * ============================================================ */
-
-    public function viewAny(User $u): bool
+    public function viewAny(User $user): bool
     {
-        return $this->isOwner($u) || $this->isSuperadmin($u) || $this->isKetua($u) || $this->isPengurus($u);
+        return $user->exists;
     }
 
-    public function view(User $u, AttendanceSession $s): bool
+    /**
+     * Hanya Ketua/Pengurus di organisasi tersebut yang bisa membuat sesi baru.
+     */
+    public function create(User $user): bool
     {
-        return $this->viewAny($u);
+        $orgId = OrganizationContext::id();
+        if (!$orgId) return false;
+
+        return OrganizationContext::authorize($user, $orgId, 'officer');
     }
 
-    public function create(User $u): bool
+    /**
+     * Update sesi: Hanya Leader/Officer di org yang sama, dan status belum closed.
+     */
+    public function update(User $user, AttendanceSession $session): bool
     {
-        return $this->isOwner($u) || $this->isSuperadmin($u) || $this->isKetua($u);
+        if (in_array((int) $user->level_id, [1, 2])) return true;
+
+        if (!in_array($session->session_status, ['draft', 'scheduled', 'open', 'paused'])) return false;
+
+        return OrganizationContext::authorize($user, $session->organization_id, 'officer');
     }
 
-    public function update(User $u, AttendanceSession $s): bool
+    /**
+     * Hapus sesi: Hanya Owner/Superadmin, atau Ketua di org tersebut.
+     */
+    public function delete(User $user, AttendanceSession $session): bool
     {
-        if ($this->isOwner($u) || $this->isSuperadmin($u)) return true;
-
-        // Ketua hanya boleh update sesi yang belum open
-        if ($this->isKetua($u)) {
-            return in_array($s->session_status, ['draft', 'scheduled']);
-        }
-
-        return false;
+        if (in_array((int) $user->level_id, [1, 2])) return true;
+        return OrganizationContext::authorize($user, $session->organization_id, 'leader');
     }
 
-    public function delete(User $u, AttendanceSession $s): bool
+    /**
+     * Lifecycle: Buka Sesi
+     */
+    public function open(User $user, AttendanceSession $session): bool
     {
-        return $this->isOwner($u) || $this->isSuperadmin($u);
+        if (!in_array($session->session_status, ['scheduled', 'paused'])) return false;
+        if (in_array((int) $user->level_id, [1, 2])) return true;
+        return OrganizationContext::authorize($user, $session->organization_id, 'officer');
     }
 
-    /* ============================================================
-     * LIFECYCLE
-     * ============================================================ */
-
-    public function open(User $u, AttendanceSession $s): bool
+    /**
+     * Lifecycle: Tutup Sesi
+     */
+    public function close(User $user, AttendanceSession $session): bool
     {
-        // Hanya boleh open jika status scheduled
-        if (!in_array($s->session_status, ['scheduled', 'paused'])) return false;
-
-        return $this->isOwner($u) || $this->isSuperadmin($u) || $this->isKetua($u);
+        if (!in_array($session->session_status, ['open', 'extended', 'paused'])) return false;
+        if (in_array((int) $user->level_id, [1, 2])) return true;
+        return OrganizationContext::authorize($user, $session->organization_id, 'officer');
     }
 
-    public function close(User $u, AttendanceSession $s): bool
+    /**
+     * Lifecycle: Perpanjang Sesi
+     */
+    public function extend(User $user, AttendanceSession $session): bool
     {
-        if (!in_array($s->session_status, ['open', 'extended', 'paused'])) return false;
-
-        return $this->isOwner($u) || $this->isSuperadmin($u) || $this->isKetua($u);
+        if (!in_array($session->session_status, ['open', 'extended'])) return false;
+        if (in_array((int) $user->level_id, [1, 2])) return true;
+        return OrganizationContext::authorize($user, $session->organization_id, 'officer');
     }
 
-    public function cancel(User $u, AttendanceSession $s): bool
+    /**
+     * Lifecycle: Batalkan Sesi (Hanya Ketua/Owner)
+     */
+    public function cancel(User $user, AttendanceSession $session): bool
     {
-        // Tidak boleh cancel yang sudah closed
-        if (in_array($s->session_status, ['closed', 'reconciled', 'archived'])) return false;
-
-        return $this->isOwner($u) || $this->isSuperadmin($u);
+        if (in_array($session->session_status, ['closed', 'reconciled', 'archived'])) return false;
+        if (in_array((int) $user->level_id, [1, 2])) return true;
+        return OrganizationContext::authorize($user, $session->organization_id, 'leader');
     }
 
-    public function extend(User $u, AttendanceSession $s): bool
+    /**
+     * Manual entry (koreksi kehadiran oleh pengurus)
+     */
+    public function manualEntry(User $user, AttendanceSession $session): bool
     {
-        if (!in_array($s->session_status, ['open', 'extended'])) return false;
-
-        return $this->isOwner($u) || $this->isSuperadmin($u) || $this->isKetua($u);
-    }
-
-    public function pause(User $u, AttendanceSession $s): bool
-    {
-        if ($s->session_status !== 'open') return false;
-
-        return $this->isOwner($u) || $this->isSuperadmin($u) || $this->isKetua($u) || $this->isPengurus($u);
-    }
-
-    public function reconcile(User $u, AttendanceSession $s): bool
-    {
-        return $this->isOwner($u) || $this->isSuperadmin($u);
-    }
-
-    public function archive(User $u, AttendanceSession $s): bool
-    {
-        return $this->isOwner($u);
-    }
-
-    /* ============================================================
-     * ATTENDANCE OPERATIONS
-     * ============================================================ */
-
-    public function manualEntry(User $u, AttendanceSession $s): bool
-    {
-        // Manual entry hanya saat window aktif
-        if (!in_array($s->session_status, ['open', 'extended'])) return false;
-
-        return $this->isOwner($u) || $this->isSuperadmin($u) || $this->isKetua($u) || $this->isPengurus($u);
-    }
-
-    public function monitor(User $u, AttendanceSession $s): bool
-    {
-        return $this->viewAny($u);
-    }
-
-    public function audit(User $u): bool
-    {
-        return $this->isOwner($u) || $this->isSuperadmin($u) || $this->isKetua($u);
+        if (!in_array($session->session_status, ['open', 'extended'])) return false;
+        if (in_array((int) $user->level_id, [1, 2])) return true;
+        return OrganizationContext::authorize($user, $session->organization_id, 'officer');
     }
 }

@@ -123,6 +123,8 @@ public function test_anggota_cannot_access_ketua_routes(): void
 {
     $anggota = User::where('level_id', 5)->first();
     $response = $this->actingAs($anggota)->get('/ketua/management/qr');
-    $response->assertForbidden();
+    
+    // Middleware CheckRole me-redirect user kembali ke dashboard (302) bukan 403 kaku.
+    $response->assertStatus(302);
 }
 }
