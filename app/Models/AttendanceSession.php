@@ -13,6 +13,7 @@ class AttendanceSession extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'organization_id', // Pastikan ini ada
         'uuid', 'schedule_id', 'room_id', 'title', 'description',
         'attendance_type', 'attendance_mode',
         'scheduled_start_at', 'scheduled_end_at',
@@ -24,7 +25,7 @@ class AttendanceSession extends Model
         'created_by', 'updated_by',
         'started_at', 'opened_at', 'closed_at', 'extended_at',
         'cancelled_at', 'cancel_reason', 'notes',
-        'room_schedule_id', 'audience_type', 'audience_ids', 'attendance_mode', 'source',
+        'room_schedule_id', 'audience_type', 'audience_ids', 'source',
     ];
 
     protected $casts = [
@@ -45,23 +46,31 @@ class AttendanceSession extends Model
         'early_open_minutes'   => 'integer',
         'extension_minutes'    => 'integer',
         'shift_order'          => 'integer',
-        'audience_ids' => 'array',
+        'audience_ids'         => 'array',
     ];
-public function roomSchedule()
-{
-    return $this->belongsTo(\App\Models\RoomSchedule::class, 'room_schedule_id');
-}
-    protected static function booted(): void
+
+    public function roomSchedule()
     {
-        static::creating(function ($m) {
-            if (empty($m->uuid)) {
-                $m->uuid = (string) Str::uuid();
+        return $this->belongsTo(\App\Models\RoomSchedule::class, 'room_schedule_id');
+    }
+
+    protected static function booted()
+    {
+        // 1. Otomatis isi organization_id & uuid saat membuat sesi baru
+        static::creating(function ($model) {
+            if (empty($model->organization_id)) {
+                $model->organization_id = \App\Services\OrganizationContext::id();
             }
-            if (empty($m->allowed_methods)) {
-                $m->allowed_methods = ['manual', 'nfc', 'qr'];
+            if (empty($model->uuid)) {
+                $model->uuid = (string) Str::uuid();
             }
-            if (empty($m->session_status)) {
-                $m->session_status = 'scheduled';
+        });
+
+        // 2. Otomatis filter query berdasarkan organisasi aktif
+        static::addGlobalScope('organization', function ($builder) {
+            $orgId = \App\Services\OrganizationContext::id();
+            if ($orgId) {
+                $builder->where('attendance_sessions.organization_id', $orgId);
             }
         });
     }
@@ -391,10 +400,6 @@ public function roomSchedule()
      | NOTIFICATION INTEGRATION
      * ============================================================ */
 
-    /**
-     * Siapa saja yang menerima notifikasi sesi absensi?
-     * Default: owner (1) + ketua (3) + pengurus (4)
-     */
     public function notificationRecipients(): array
     {
         return \App\Models\User::query()
@@ -404,9 +409,6 @@ public function roomSchedule()
             ->all();
     }
 
-    /**
-     * Payload default kalau observer tidak menyuplai.
-     */
     public function toNotificationPayload(): array
     {
         return [

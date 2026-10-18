@@ -107,4 +107,21 @@ class AttendanceSessionPolicy
         if (in_array((int) $user->level_id, [1, 2])) return true;
         return OrganizationContext::authorize($user, $session->organization_id, 'officer');
     }
+    protected static function booted()
+{
+    // Auto-filter berdasarkan organisasi aktif di session
+    static::addGlobalScope('organization', function ($builder) {
+        $orgId = OrganizationContext::id();
+        if ($orgId) {
+            $builder->where('attendance_sessions.organization_id', $orgId);
+        }
+    });
+
+    // Auto-isi organization_id saat membuat sesi baru
+    static::creating(function ($model) {
+        if (empty($model->organization_id)) {
+            $model->organization_id = OrganizationContext::id();
+        }
+    });
+}
 }

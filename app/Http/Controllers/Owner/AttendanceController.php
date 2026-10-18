@@ -22,6 +22,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use App\Services\Audit\AuditService;   // ← IMPORT di atas
+use Illuminate\Support\Facades\Gate;
 
 class AttendanceController extends Controller
 {
@@ -36,6 +37,9 @@ class AttendanceController extends Controller
      * ══════════════════════════════════════════════════════════════ */
     public function index(Request $request)
     {
+        if (!Auth::user()->hasAnyRole(['owner', 'superadmin'])) {
+        $this->authorize('viewAny', \App\Models\AttendanceSession::class);
+    }
         $this->autoSyncSessions();
 
         $query = AttendanceSession::with(['room', 'schedule', 'creator', 'records', 'permissions'])
@@ -171,6 +175,8 @@ public function create(Request $request)
  * ══════════════════════════════════════════════════════════════ */
 public function store(Request $request)
 {
+        $this->authorize('create', \App\Models\AttendanceSession::class);
+
     /* ─────────── VALIDASI ─────────── */
     $validated = $request->validate([
         'title'                 => 'required|string|max:150',
@@ -233,6 +239,7 @@ public function store(Request $request)
             $validated, $targetData, $allowedMethods
         ) {
             $session = AttendanceSession::create([
+                'organization_id'       => \App\Services\OrganizationContext::id(),
                 'title'                 => $validated['title'],
                 'description'           => $validated['description'] ?? null,
                 'attendance_type'       => $validated['attendance_type'],
@@ -440,6 +447,8 @@ public function store(Request $request)
      */
     public function openNow(AttendanceSession $session)
     {
+            $this->authorize('open', $session);
+
         if ($session->session_status === 'open') {
             // ⭐ LOG GAGAL — penting untuk security
             AuditService::record([
