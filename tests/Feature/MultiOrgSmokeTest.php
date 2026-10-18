@@ -112,59 +112,17 @@ class MultiOrgSmokeTest extends TestCase
         $this->assertFalse(OrganizationContext::authorize($u1->fresh(), $org->id, 'leader'));
         $this->assertTrue(OrganizationContext::authorize($u2->fresh(), $org->id, 'leader'));
     }
-    public function test_diagnostic_transfer_leadership(): void
+  public function test_ketua_cannot_access_owner_routes(): void
 {
-    $org = Organization::where('slug', 'hima-ars')->first();
-    if (!$org) {
-        $this->markTestSkipped('HIMA ARS tidak ada.');
-    }
+    $ketua = User::where('level_id', 3)->first();
+    $response = $this->actingAs($ketua)->get('/owner/dashboard');
+    $response->assertForbidden(); // 403
+}
 
-    // Cleanup dulu
-    \DB::table('organization_memberships')
-        ->where('organization_id', $org->id)
-        ->delete();
-
-    $u1 = User::where('level_id', 4)->first();
-    $u2 = User::where('level_id', 5)->first();
-
-    // Step 1: promote u1
-    OrganizationLeadershipService::promoteToLeader($org->id, $u1->id, 'Ketua');
-
-    $membershipU1 = \DB::table('organization_memberships')
-        ->where('organization_id', $org->id)
-        ->where('user_id', $u1->id)
-        ->first();
-
-    dump([
-        'step_1_promote_u1' => [
-            'u1_id'              => $u1->id,
-            'u2_id'              => $u2->id,
-            'u1_membership'      => $membershipU1,
-            'authorize_u1_leader' => OrganizationContext::authorize($u1->fresh(), $org->id, 'leader'),
-        ],
-    ]);
-
-    // Step 2: transfer
-    OrganizationLeadershipService::transferLeadership($org->id, $u1->id, $u2->id);
-
-    $allMemberships = \DB::table('organization_memberships')
-        ->where('organization_id', $org->id)
-        ->get();
-
-    dump([
-        'step_2_transfer' => [
-            'all_memberships' => $allMemberships,
-            'u1_after'        => \DB::table('organization_memberships')
-                ->where('organization_id', $org->id)
-                ->where('user_id', $u1->id)
-                ->first(),
-            'u2_after'        => \DB::table('organization_memberships')
-                ->where('organization_id', $org->id)
-                ->where('user_id', $u2->id)
-                ->first(),
-            'authorize_u1'    => OrganizationContext::authorize($u1->fresh(), $org->id, 'leader'),
-            'authorize_u2'    => OrganizationContext::authorize($u2->fresh(), $org->id, 'leader'),
-        ],
-    ]);
+public function test_anggota_cannot_access_ketua_routes(): void
+{
+    $anggota = User::where('level_id', 5)->first();
+    $response = $this->actingAs($anggota)->get('/ketua/management/qr');
+    $response->assertForbidden();
 }
 }
