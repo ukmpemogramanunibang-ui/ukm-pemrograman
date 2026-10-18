@@ -1410,10 +1410,6 @@ Route::delete('/{id}', function (int $id) {
                 Route::post('/{id}/approve', [ReactivationController::class, 'approve'])->whereNumber('id')->name('approve');
                 Route::post('/{id}/reject',  [ReactivationController::class, 'reject'])->whereNumber('id')->name('reject');
             });
-            Route::resource('campaigns', CampaignController::class)
-    ->names('campaigns')
-    ->parameters(['campaigns' => 'campaign'])
-    ->whereNumber('campaign');
 
 // Quick transitions
 Route::post('campaigns/{campaign}/activate', [CampaignController::class, 'activate'])
@@ -1623,34 +1619,6 @@ Route::prefix('ketua')->name('ketua.')
         Route::get('/dashboard', [\App\Http\Controllers\KetuaDashboardController::class, 'index'])->name('dashboard');
 
 Route::prefix('manajemen-anggota')->name('manajemen-anggota.')->group(function () {
-    Route::get('/', function (\Illuminate\Http\Request $request) {
-        try {
-            $query = User::where('level_id', 5)
-                ->whereNull('deleted_at')
-                ->with(['level', 'university', 'major']);
-
-            if ($q = $request->input('q')) {
-                $query->where(function ($w) use ($q) {
-                    $w->where('name', 'like', "%{$q}%")
-                      ->orWhere('nim', 'like', "%{$q}%")
-                      ->orWhere('email', 'like', "%{$q}%");
-                });
-            }
-
-            $members = $query->latest()->paginate(20);
-        } catch (\Throwable $e) {
-            \Log::warning('[Ketua] manajemen-anggota error', ['error' => $e->getMessage()]);
-            $members = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
-        }
-        return view('ketua.manajemen-anggota.index', compact('members'));
-    })->name('index');
-
-    Route::get('/{id}', function (int $id) {
-        $member = User::with(['level', 'university', 'major', 'jabatans'])->findOrFail($id);
-        return view('ketua.manajemen-anggota.show', compact('member'));
-    })->whereNumber('id')->name('show');
-});/* ---------- MANAJEMEN ANGGOTA (Full Featured) ---------- */
-Route::prefix('manajemen-anggota')->name('manajemen-anggota.')->group(function () {
     $ctrl = \App\Http\Controllers\Ketua\MemberManagementController::class;
 
     Route::get('/',               [$ctrl, 'index'])->name('index');
@@ -1658,41 +1626,6 @@ Route::prefix('manajemen-anggota')->name('manajemen-anggota.')->group(function (
     Route::post('/bulk-action',   [$ctrl, 'bulkAction'])->name('bulk-action');
     Route::post('/manage-role',   [$ctrl, 'manageRole'])->name('manage-role');
     Route::get('/{id}',           [$ctrl, 'show'])->whereNumber('id')->name('show');
-});
-/* ═══════════════════════════════════════════════════════
-   LMS — Ketua (Create Group & Item)
-   ═══════════════════════════════════════════════════════ */
-Route::prefix('lms')->name('lms.')->group(function () {
-
-    /* ── Groups ── */
-    Route::get('/groups/create', [\App\Http\Controllers\Owner\Lms\GroupController::class, 'create'])
-        ->name('groups.create');
-
-    Route::post('/groups', [\App\Http\Controllers\Owner\Lms\GroupController::class, 'store'])
-        ->name('groups.store');
-
-    Route::get('/groups/{group}', [\App\Http\Controllers\Owner\Lms\GroupController::class, 'show'])
-        ->whereNumber('group')->name('groups.show');
-
-    /* ── Items ── */
-    Route::get('/items/create', [\App\Http\Controllers\Owner\Lms\ItemController::class, 'create'])
-        ->name('items.create');
-
-    Route::post('/items', [\App\Http\Controllers\Owner\Lms\ItemController::class, 'store'])
-        ->name('items.store');
-
-    Route::get('/items/search-users', [\App\Http\Controllers\Owner\Lms\ItemController::class, 'searchUsers'])
-        ->middleware('throttle:60,1')->name('items.search-users');
-
-    Route::get('/items/{item}', [\App\Http\Controllers\Owner\Lms\ItemController::class, 'show'])
-        ->whereNumber('item')->name('items.show');
-
-    /* ── Items inside a group ── */
-    Route::get('/groups/{group}/items/create', [\App\Http\Controllers\Owner\Lms\ItemController::class, 'create'])
-        ->whereNumber('group')->name('groups.items.create');
-
-    Route::post('/groups/{group}/items', [\App\Http\Controllers\Owner\Lms\ItemController::class, 'store'])
-        ->whereNumber('group')->name('groups.items.store');
 });
 Route::prefix('ketua/lms')->name('ketua.lms.')->middleware(['auth', 'role:ketua'])->group(function () {
     // Groups
@@ -2168,10 +2101,6 @@ Route::get('/{division}/members-count', function (int $division) {
     return response()->json(['count' => $count]);
 })->whereNumber('division')->name('members-count');
 
-/* ═══ WILDCARD — PALING BAWAH ═══ */
-Route::get('/{id}', function (int $id) {
-    // ... (route show yang sudah ada)
-})->whereNumber('id')->name('show');
     /* ── SHOW (paling bawah — wildcard) ── */
     Route::get('/{id}', function (int $id) {
         $division = null;
@@ -2412,17 +2341,7 @@ Route::prefix('management/qr')->name('management.qr.')->group(function () {
         Route::get('/pengaturan',    $page('ketua.pengaturan'))->name('pengaturan');
 
     });
-/* Manajemen QR — KETUA */
-Route::prefix('management/qr')->name('management.qr.')->group(function () {
-    Route::get('/',                 [\App\Http\Controllers\QrController::class, 'index'])->name('index');
-    Route::get('/generate',         [\App\Http\Controllers\QrController::class, 'generate'])->name('generate');
-    Route::get('/detail/{user}',    [\App\Http\Controllers\QrController::class, 'detail'])->name('detail');
-    Route::post('/revoke/{user}',   [\App\Http\Controllers\QrController::class, 'revoke'])->name('revoke');
-    Route::post('/rotate/{user}',   [\App\Http\Controllers\QrController::class, 'rotate'])->name('rotate');
-    Route::get('/history/{user}',   [\App\Http\Controllers\QrController::class, 'history'])->name('history');
-    Route::delete('/delete-selected',[\App\Http\Controllers\QrController::class, 'deleteSelected'])->name('delete-selected');
-    Route::get('/download-qr/{qr}/{format}', [\App\Http\Controllers\QrController::class, 'download'])->name('download');
-});
+
 
 /* Manajemen NFC — KETUA (view only, tanpa revoke/hapus) */
 Route::prefix('management/nfc')->name('management.nfc.')->group(function () {
@@ -2567,7 +2486,6 @@ Route::middleware(['owner.explore.bypass', 'verified', 'no-cache'])
         Route::get('/ruangan', fn () => redirect()->route('room.public.index'))->name('ruangan');
         Route::get('/game',    fn () => redirect()->route('explore', ['tab' => 'game']))->name('game');
           Route::get('/dashboard', [\App\Http\Controllers\Pengunjung\DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/beranda', fn () => redirect()->route('landing'))->name('beranda');
     });
 
 
