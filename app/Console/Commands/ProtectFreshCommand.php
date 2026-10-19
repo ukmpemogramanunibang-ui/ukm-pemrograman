@@ -2,23 +2,30 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
+use Illuminate\Database\Console\Migrations\FreshCommand;
 
-class ProtectFreshCommand extends Command
+class ProtectFreshCommand extends FreshCommand
 {
-    protected $signature = 'migrate:fresh {--force : Jalankan meskipun di production}';
-    protected $description = 'Proteksi migrate:fresh agar tidak berjalan di production';
+    /**
+     * Signature, description, dan SEMUA option diwarisi dari FreshCommand.
+     * --drop-views, --drop-types, --seed, --seeder, --step, --path, dll.
+     * otomatis tersedia → RefreshDatabase bisa jalan normal.
+     *
+     * Parent (FreshCommand) sudah punya proteksi production via ConfirmableTrait.
+     * Override handle() hanya untuk pesan error kustom.
+     */
+public function handle()
+{
+    // Logika custom Anda
+    \Log::warning('migrate:fresh dipanggil', ['user' => auth()->id()]);
 
-    public function handle(): int   // ← ubah dari void ke int
-    {
-        if (app()->environment('production') && !$this->option('force')) {
-            $this->error('❌ DANGER: migrate:fresh dilarang pada environment production.');
-            $this->warn('Gunakan --force jika Anda benar-benar yakin.');
-            return 1; // error
-        }
-
-        // Jalankan migrate:fresh asli
-        $this->call('migrate:fresh', ['--force' => true]);
-        return 0; // sukses
+    // Proteksi production
+    if ($this->laravel->isProduction() && ! $this->option('force')) {
+        $this->components->error('Diblokir di production.');
+        return self::FAILURE;
     }
+
+    // Delegasi ke framework — semua option --drop-views, --seed, dll. tetap bekerja
+    return parent::handle();
+}
 }
