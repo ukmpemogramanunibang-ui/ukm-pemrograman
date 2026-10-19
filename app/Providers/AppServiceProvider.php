@@ -17,7 +17,8 @@ use Illuminate\Pagination\Paginator as BasePaginator;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Support\Str;
 use Throwable;
-
+use App\Models\Financial\Invoice;
+use App\Policies\InvoicePolicy;
 // ── View Composers ──
 use App\View\Composers\SidebarComposer;
 
@@ -37,6 +38,7 @@ use App\Observers\{
     BookingObserver,
     UserObserver,
     LmsItemObserver,
+    CreatedByObserver,          // ← TAMBAH
 };
 
 // ── Policies ──
@@ -181,6 +183,7 @@ class AppServiceProvider extends ServiceProvider
 
     protected function configurePolicies(): void
     {
+        Gate::policy(Invoice::class, InvoicePolicy::class);
         Gate::policy(AttendanceSession::class, AttendanceSessionPolicy::class);
         Gate::policy(Booking::class,           BookingPolicy::class);
         Gate::policy(User::class,              UserPolicy::class);
@@ -219,14 +222,15 @@ class AppServiceProvider extends ServiceProvider
 
     protected function configureObservers(): void
     {
-        $map = [
-            PaymentAllocation::class => PaymentAllocationObserver::class,
-            AttendanceRecord::class  => AttendanceRecordObserver::class,
-            AttendanceSession::class => AttendanceSessionObserver::class,
-            Booking::class           => BookingObserver::class,
-            User::class              => UserObserver::class,
-            LmsItem::class           => LmsItemObserver::class,
-        ];
+$map = [
+    PaymentAllocation::class => PaymentAllocationObserver::class,
+    AttendanceRecord::class  => AttendanceRecordObserver::class,
+    AttendanceSession::class => AttendanceSessionObserver::class,
+    Booking::class           => BookingObserver::class,
+    User::class              => UserObserver::class,
+    LmsItem::class           => LmsItemObserver::class,
+    Invoice::class           => CreatedByObserver::class,      // ← TAMBAH
+];
 
         foreach ($map as $model => $observer) {
             if (! class_exists($observer) || ! class_exists($model)) continue;

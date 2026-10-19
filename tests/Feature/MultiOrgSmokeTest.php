@@ -178,4 +178,38 @@ class MultiOrgSmokeTest extends TestCase
         // 6. Uji query di context HIMA (harusnya 0 karena sesi UNICODE tidak terlihat)
         $this->assertEquals(0, \App\Models\AttendanceSession::where('title', $sessionTitle)->count());
     }
+    public function test_isolasi_data_keuangan_antar_organisasi(): void
+    {
+        $orgUnicode = Organization::where('slug', 'ukm-pemrograman-unicode')->first();
+        $orgHima    = Organization::where('slug', 'hima-informatika')->first();
+        
+        $user = User::where('level_id', 3)->first(); // Ketua
+        
+        // 1. Set context ke UNICODE
+        OrganizationContext::set($orgUnicode->id);
+        
+        // 2. Buat Invoice dummy di UNICODE lewat factory
+        $invoiceTitle = 'Iuran UNICODE ' . uniqid();
+        \App\Models\Financial\Invoice::factory()->create([
+            'organization_id' => $orgUnicode->id,
+            'user_id'         => $user->id,
+            'created_by'      => $user->id,
+            'title'           => $invoiceTitle,
+        ]);
+
+        // 3. Uji: di context UNICODE harus ketemu
+        $this->assertEquals(1, \App\Models\Financial\Invoice::where('title', $invoiceTitle)->count());
+        
+        // 4. Ganti context ke HIMA
+        OrganizationContext::set($orgHima->id);
+        
+        // 5. Uji: di context HIMA harus 0 (TIDAK BOCOR)
+        $this->assertEquals(0, \App\Models\Financial\Invoice::where('title', $invoiceTitle)->count());
+    }
+    public function test_officer_org_a_cannot_update_invoice_org_b(): void
+{
+    // setup officer di org A, invoice di org B
+    $this->assertFalse(Gate::forUser($officer)->allows('update', $invoiceOrgB));
+}
+
 }

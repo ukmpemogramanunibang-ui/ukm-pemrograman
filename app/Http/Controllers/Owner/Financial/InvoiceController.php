@@ -16,6 +16,7 @@ class InvoiceController extends Controller
 {
 public function index()
 {
+    $this->authorize('viewAny', \App\Models\Financial\Invoice::class);
     $invoices = Invoice::with(['user', 'feePlan.generation'])
         ->orderBy('created_at', 'desc')
         ->paginate(15);
@@ -28,6 +29,7 @@ public function index()
      */
     public function show(Invoice $invoice)
     {
+        $this->authorize('view', $invoice);
         $invoice->load(['user', 'feePlan.generation', 'payments']);
         return view('owner.financial.invoices.show', compact('invoice'));
     }

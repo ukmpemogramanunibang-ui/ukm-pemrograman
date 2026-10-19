@@ -2,16 +2,22 @@
 
 namespace App\Models\Financial;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\User;
 
 class Invoice extends Model
+
 {
-    protected $fillable = [
-        'invoice_number', 'user_id', 'generation_id', 'fee_plan_id', 'financial_campaign_id',
-        'type', 'period', 'standard_due_date', 'adjusted_due_date', 'final_due_date',
-        'due_date_reason', 'subtotal', 'penalty', 'discount', 'total', 'status', 'paid_at', 'meta'
-    ];
+     use HasFactory;
+protected $fillable = [
+    'invoice_number', 'user_id', 'generation_id', 'fee_plan_id',
+    'financial_campaign_id', 'created_by', 'title', 'amount',
+    'type', 'period', 'standard_due_date', 'adjusted_due_date',
+    'final_due_date', 'organization_id', 'status', 'due_date',
+    'due_date_reason', 'subtotal', 'penalty', 'discount',
+    'total', 'paid_at', 'meta',
+];
 
     protected $casts = [
         'standard_due_date' => 'date',
@@ -25,7 +31,27 @@ class Invoice extends Model
     {
         return $this->belongsTo(User::class);
     }
+    protected static function booted()
+    {
+        static::creating(function ($model) {
+            if (empty($model->organization_id)) {
+                $model->organization_id = \App\Services\OrganizationContext::id();
+            }
+            if (empty($model->invoice_number)) {
+                $model->invoice_number = 'INV-' . strtoupper(\Illuminate\Support\Str::random(10));
+            }
+            if (empty($model->uuid) && \Illuminate\Support\Facades\Schema::hasColumn('invoices', 'uuid')) {
+                $model->uuid = (string) \Illuminate\Support\Str::uuid();
+            }
+        });
 
+        static::addGlobalScope('organization', function ($builder) {
+            $orgId = \App\Services\OrganizationContext::id();
+            if ($orgId) {
+                $builder->where('invoices.organization_id', $orgId);
+            }
+        });
+    }
     public function generation()
     {
         return $this->belongsTo(Generation::class);
@@ -45,4 +71,8 @@ class Invoice extends Model
     {
         return $this->hasMany(PaymentAllocation::class);
     }
+    public function creator()
+{
+    return $this->belongsTo(User::class, 'created_by');
+}
 }
