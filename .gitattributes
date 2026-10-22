@@ -1,20 +1,53 @@
-* text=auto eol=lf
+# ── Laravel Default ──
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+/.fleet
+/.idea
+/.nova
+/.vscode
+/.zed
+.DS_Store
 
-# ── Konfigurasi Diff (Agar review GitHub lebih enak dibaca) ──
-*.blade.php diff=html
-*.css diff=css
-*.html diff=html
-*.md diff=markdown
-*.php diff=php
+# ── Backup & Logs ──
+*.log
+*.bak
+*.bak_*
+*.BROKEN_*
+routes_backup/
+migrations_backup/
+debug-routes.txt
+route_list_sebelum.*
 
-# ── Konfigurasi Line Endings (Mencegah Warning CRLF di Windows) ──
-*.blade.php text eol=lf
-*.php text eol=lf
-*.js text eol=lf
-*.css text eol=lf
-*.json text eol=lf
+# ── Audit & Debug Lokal ──
+storage/audit/
+storage/backups/
+*.bundle
+schema_*.txt
+routes_valid.txt
+sidebar_routes.txt
+test-callback.ps1
 
-# ── Abaikan file dari ekspor rilis (Opsional) ──
-/.github export-ignore
-CHANGELOG.md export-ignore
-.styleci.yml export-ignore
+# ── Typo & File Rusak ──
+*.php.php
+resources/views/auth/a
+resources/views/layouts/.blade.php
+resources/views/partials/roles/owner/s
+resources/views/ketua/kelompok.blade.phP
+resources/views/owner/management/qr/pengurus index qr
+
+# ── Gambar Debug ──
+public/images/Screenshot *.png
+public/images/WhatsApp *.jpeg
