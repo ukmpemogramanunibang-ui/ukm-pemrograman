@@ -95,7 +95,6 @@
 
     /* ═══════════════════════════════════════════════════════════
      |  SEARCH INDEX — single source of truth
-     |  Data dari App\Support\KetuaMenu, sama dengan sidebar.
      ═══════════════════════════════════════════════════════════ */
     $searchIndex = \App\Support\KetuaMenu::searchable();
 
@@ -110,9 +109,15 @@
         $activeOrg = null;
     }
 @endphp
+
+{{-- WAJIB: CSS untuk menyembunyikan elemen Alpine sebelum di-init --}}
+<style>
+    [x-cloak] { display: none !important; }
+</style>
+
 <header id="topbar"
         role="banner"
-        class="sticky top-0 z-30 h-16 flex items-center justify-between gap-3
+        class="sticky top-0 z-50 h-16 flex items-center justify-between gap-3
                px-4 lg:px-6 bg-white/85 dark:bg-gray-900/85 backdrop-blur-md
                border-b border-gray-200 dark:border-gray-800 shrink-0">
 
@@ -154,12 +159,7 @@
     <div class="flex items-center gap-1.5 shrink-0">
 
         {{-- ═══ SEARCH / COMMAND PALETTE ═══ --}}
-        <div x-data="menuSearch()"
-             x-init="init()"
-             @click.outside="close()"
-             @keydown.escape.window="close()"
-             class="hidden md:block relative">
-
+        <div x-data="menuSearch" class="hidden md:block relative">
             <div class="relative">
                 <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2
                           text-gray-400 text-xs pointer-events-none"></i>
@@ -194,13 +194,13 @@
                  x-transition:enter="transition ease-out duration-150"
                  x-transition:enter-start="opacity-0 -translate-y-1"
                  x-transition:enter-end="opacity-100 translate-y-0"
+                 @click.outside="close()"
                  class="absolute right-0 mt-2 w-[24rem] max-w-[calc(100vw-1rem)] z-50
                         rounded-2xl bg-white dark:bg-gray-900
                         shadow-2xl ring-1 ring-black/5 dark:ring-white/10
                         border border-gray-200 dark:border-gray-800 overflow-hidden"
                  role="listbox">
 
-                {{-- Header --}}
                 <div class="flex items-center justify-between px-4 py-2.5
                             border-b border-gray-100 dark:border-gray-800">
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
@@ -215,9 +215,7 @@
                     </span>
                 </div>
 
-                {{-- Body --}}
                 <div class="max-h-80 overflow-y-auto p-1.5">
-                    {{-- Empty query → tampil semua menu --}}
                     <template x-if="query.length === 0">
                         <template x-for="(item, i) in allItems" :key="'default-' + i">
                             <a :href="item.url"
@@ -241,7 +239,6 @@
                         </template>
                     </template>
 
-                    {{-- Dengan query → hasil terfilter --}}
                     <template x-if="query.length > 0 && results.length === 0">
                         <div class="py-10 text-center">
                             <div class="w-12 h-12 mx-auto mb-2 rounded-xl
@@ -282,18 +279,11 @@
                     </template>
                 </div>
 
-                {{-- Footer tips --}}
                 <div class="px-3 py-2 border-t border-gray-100 dark:border-gray-800
                             flex items-center justify-between text-[10px] text-gray-400">
-                    <span class="flex items-center gap-1">
-                        <kbd class="px-1 rounded bg-gray-100 dark:bg-gray-800">↑↓</kbd> navigasi
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <kbd class="px-1 rounded bg-gray-100 dark:bg-gray-800">↵</kbd> buka
-                    </span>
-                    <span class="flex items-center gap-1">
-                        <kbd class="px-1 rounded bg-gray-100 dark:bg-gray-800">Esc</kbd> tutup
-                    </span>
+                    <span class="flex items-center gap-1"><kbd class="px-1 rounded bg-gray-100 dark:bg-gray-800">↑↓</kbd> navigasi</span>
+                    <span class="flex items-center gap-1"><kbd class="px-1 rounded bg-gray-100 dark:bg-gray-800">↵</kbd> buka</span>
+                    <span class="flex items-center gap-1"><kbd class="px-1 rounded bg-gray-100 dark:bg-gray-800">Esc</kbd> tutup</span>
                 </div>
             </div>
         </div>
@@ -360,7 +350,7 @@
         </button>
 
         {{-- ═══ NOTIFICATION CENTER ═══ --}}
-        <div x-data="notifCenter()" x-init="init()" @click.outside="open = false" class="relative">
+        <div x-data="notifCenter" class="relative">
             <button type="button"
                     @click="open = !open"
                     :aria-expanded="open"
@@ -377,6 +367,7 @@
             </button>
 
             <div x-show="open" x-cloak
+                 @click.outside="open = false"
                  x-transition:enter="transition ease-out duration-200"
                  x-transition:enter-start="opacity-0 translate-y-1"
                  x-transition:enter-end="opacity-100 translate-y-0"
@@ -493,8 +484,7 @@
                                 ? 'bg-gradient-to-br from-indigo-500 to-purple-500 ring-indigo-300 dark:ring-indigo-700'
                                 : 'bg-gradient-to-br from-purple-500 to-pink-500 ring-white dark:ring-gray-900' }}">
                     @if($userAvatarUrl)
-                        <img src="{{ $userAvatarUrl }}" alt="" loading="lazy"
-                             class="w-full h-full object-cover">
+                        <img src="{{ $userAvatarUrl }}" alt="" loading="lazy" class="w-full h-full object-cover">
                     @else
                         {{ $userInitial }}
                     @endif
@@ -600,194 +590,192 @@
     </div>
 </header>
 
-{{-- Meta CSRF untuk fetch di JS --}}
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
 @once
 @push('scripts')
 <script>
-/* ═══════════════════════════════════════════════════════════════
-   GLOBAL — CSRF & MENU INDEX
-   ═══════════════════════════════════════════════════════════════ */
-window.__csrf = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
-window.KETUA_MENU_INDEX = @json($searchIndex);
+    /* ═══════════════════════════════════════════════════════════════
+       GLOBAL — CSRF & MENU INDEX
+       ═══════════════════════════════════════════════════════════════ */
+    window.__csrf = document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}';
+    window.KETUA_MENU_INDEX = @json($searchIndex);
 
-/* ═══════════════════════════════════════════════════════════════
-   MENU SEARCH — Command palette
-   ═══════════════════════════════════════════════════════════════ */
-function menuSearch() {
-    return {
-        open: false,
-        query: '',
-        activeIndex: 0,
-        allItems: window.KETUA_MENU_INDEX || [],
-        isMac: /Mac|iPhone|iPad/.test(navigator.platform),
+    /* ═══════════════════════════════════════════════════════════════
+       ALPINE COMPONENTS (Standar Livewire v3)
+       Gunakan alpine:init agar aman dari race condition script
+       ═══════════════════════════════════════════════════════════════ */
+    document.addEventListener('alpine:init', () => {
+        
+        /* ── MENU SEARCH ── */
+        Alpine.data('menuSearch', () => ({
+            open: false,
+            query: '',
+            activeIndex: 0,
+            allItems: window.KETUA_MENU_INDEX || [],
+            isMac: /Mac|iPhone|iPad/.test(navigator.platform),
 
-        init() {
-            window.addEventListener('keydown', (e) => {
-                if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+            init() {
+                window.addEventListener('keydown', (e) => {
+                    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                        e.preventDefault();
+                        this.open = true;
+                        this.$nextTick(() => this.$refs.searchInput?.focus());
+                    }
+                });
+            },
+
+            get results() {
+                const q = this.query.trim().toLowerCase();
+                if (!q) return [];
+
+                const scored = this.allItems.map(item => {
+                    const label = item.label.toLowerCase();
+                    const kw    = (item.keywords || '').toLowerCase();
+                    let score = 0;
+
+                    if (label === q)                                  score = 100;
+                    else if (label.startsWith(q))                     score = 90;
+                    else if (label.includes(q))                       score = 80;
+                    else if (kw.split(/\s+/).some(k => k === q))      score = 70;
+                    else if (kw.includes(q))                          score = 50;
+
+                    return score > 0 ? { ...item, _score: score } : null;
+                }).filter(Boolean);
+
+                return scored.sort((a, b) => b._score - a._score).slice(0, 8);
+            },
+
+            onKeydown(e) {
+                const items = this.query.length === 0 ? this.allItems : this.results;
+                if (e.key === 'ArrowDown') {
                     e.preventDefault();
-                    this.open = true;
-                    this.$nextTick(() => this.$refs.searchInput?.focus());
-                }
-            });
-        },
-
-        get results() {
-            const q = this.query.trim().toLowerCase();
-            if (!q) return [];
-
-            const scored = this.allItems.map(item => {
-                const label = item.label.toLowerCase();
-                const kw    = (item.keywords || '').toLowerCase();
-                let score = 0;
-
-                if (label === q)                                  score = 100;
-                else if (label.startsWith(q))                     score = 90;
-                else if (label.includes(q))                       score = 80;
-                else if (kw.split(/\s+/).some(k => k === q))      score = 70;
-                else if (kw.includes(q))                          score = 50;
-
-                return score > 0 ? { ...item, _score: score } : null;
-            }).filter(Boolean);
-
-            return scored.sort((a, b) => b._score - a._score).slice(0, 8);
-        },
-
-        onKeydown(e) {
-            const items = this.query.length === 0 ? this.allItems : this.results;
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                this.activeIndex = Math.min(items.length - 1, this.activeIndex + 1);
-            } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                this.activeIndex = Math.max(0, this.activeIndex - 1);
-            } else if (e.key === 'Enter') {
-                const target = items[this.activeIndex];
-                if (target?.url) {
+                    this.activeIndex = Math.min(items.length - 1, this.activeIndex + 1);
+                } else if (e.key === 'ArrowUp') {
                     e.preventDefault();
-                    window.location.href = target.url;
+                    this.activeIndex = Math.max(0, this.activeIndex - 1);
+                } else if (e.key === 'Enter') {
+                    const target = items[this.activeIndex];
+                    if (target?.url) {
+                        e.preventDefault();
+                        window.location.href = target.url;
+                    }
+                } else if (e.key === 'Escape') {
+                    this.close();
                 }
-            } else if (e.key === 'Escape') {
-                this.close();
-            }
-        },
+            },
 
-        close() {
-            this.open = false;
-            this.query = '';
-            this.activeIndex = 0;
-        },
+            close() {
+                this.open = false;
+                this.query = '';
+                this.activeIndex = 0;
+            },
 
-        highlight(text) {
-            const esc = String(text).replace(/[&<>"']/g, c => (
-                { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
-            ));
-            const q = this.query.trim();
-            if (!q) return esc;
-            const regex = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
-            return esc.replace(regex,
-                '<mark class="bg-amber-200/70 dark:bg-amber-500/30 text-inherit rounded px-0.5">$1</mark>');
-        },
-    };
-}
+            highlight(text) {
+                const esc = String(text).replace(/[&<>"']/g, c => (
+                    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+                ));
+                const q = this.query.trim();
+                if (!q) return esc;
+                const regex = new RegExp('(' + q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'ig');
+                return esc.replace(regex,
+                    '<mark class="bg-amber-200/70 dark:bg-amber-500/30 text-inherit rounded px-0.5">$1</mark>');
+            },
+        }));
 
-/* ═══════════════════════════════════════════════════════════════
-   NOTIFICATION CENTER
-   ═══════════════════════════════════════════════════════════════ */
-function notifCenter() {
-    return {
-        open: false,
-        loading: true,
-        unread: 0,
-        items: [],
-        pollTimer: null,
-        isFetching: false,
-        latestUrl: '{{ $safeRoute("ketua.notifications.latest", [], "") }}',
-        markAllUrl: '{{ $safeRoute("ketua.notifications.mark-all-read", [], "") }}',
-        readBase: '{{ url("/ketua/notifications") }}',
+        /* ── NOTIFICATION CENTER ── */
+        Alpine.data('notifCenter', () => ({
+            open: false,
+            loading: true,
+            unread: 0,
+            items: [],
+            pollTimer: null,
+            isFetching: false,
+            latestUrl: '{{ $safeRoute("ketua.notifications.latest", [], "") }}',
+            markAllUrl: '{{ $safeRoute("ketua.notifications.mark-all-read", [], "") }}',
+            readBase: '{{ url("/ketua/notifications") }}',
 
-        async init() {
-            await this.refresh();
-            if (this.latestUrl) {
-                this.pollTimer = setInterval(() => this.refresh(true), 30000);
-            }
-            window.addEventListener('beforeunload', () => {
-                if (this.pollTimer) clearInterval(this.pollTimer);
-            });
-        },
+            init() {
+                this.refresh();
+                if (this.latestUrl) {
+                    this.pollTimer = setInterval(() => this.refresh(true), 30000);
+                }
+                window.addEventListener('beforeunload', () => {
+                    if (this.pollTimer) clearInterval(this.pollTimer);
+                });
+            },
 
-        async refresh(silent = false) {
-            if (!this.latestUrl || this.isFetching) {
-                this.loading = false;
-                return;
-            }
-            this.isFetching = true;
-            if (!silent) this.loading = this.items.length === 0;
+            async refresh(silent = false) {
+                if (!this.latestUrl || this.isFetching) {
+                    this.loading = false;
+                    return;
+                }
+                this.isFetching = true;
+                if (!silent) this.loading = this.items.length === 0;
 
-            try {
-                const r = await fetch(this.latestUrl, { headers: { 'Accept': 'application/json' } });
-                if (!r.ok) throw new Error();
-                const data = await r.json();
-                this.items  = data.items || [];
-                this.unread = data.unread || 0;
-                this.syncSidebarBadge();
-            } catch (e) {
-                /* silent */
-            } finally {
-                this.loading = false;
-                this.isFetching = false;
-            }
-        },
-
-        async openItem(n) {
-            if (n.is_unread) {
                 try {
-                    await fetch(this.readBase + '/' + n.id + '/read', {
+                    const r = await fetch(this.latestUrl, { headers: { 'Accept': 'application/json' } });
+                    if (!r.ok) throw new Error();
+                    const data = await r.json();
+                    this.items  = data.items || [];
+                    this.unread = data.unread || 0;
+                    this.syncSidebarBadge();
+                } catch (e) {
+                    /* silent */
+                } finally {
+                    this.loading = false;
+                    this.isFetching = false;
+                }
+            },
+
+            async openItem(n) {
+                if (n.is_unread) {
+                    try {
+                        await fetch(this.readBase + '/' + n.id + '/read', {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': window.__csrf,
+                                'Accept': 'application/json',
+                            },
+                        });
+                        n.is_unread = false;
+                        this.unread = Math.max(0, this.unread - 1);
+                        this.syncSidebarBadge();
+                    } catch (e) {}
+                }
+                if (n.action_url) window.location.href = n.action_url;
+            },
+
+            async markAll() {
+                if (this.unread === 0 || !this.markAllUrl) return;
+                try {
+                    await fetch(this.markAllUrl, {
                         method: 'POST',
                         headers: {
                             'X-CSRF-TOKEN': window.__csrf,
                             'Accept': 'application/json',
                         },
                     });
-                    n.is_unread = false;
-                    this.unread = Math.max(0, this.unread - 1);
+                    this.unread = 0;
+                    this.items = this.items.map(i => ({ ...i, is_unread: false }));
                     this.syncSidebarBadge();
                 } catch (e) {}
-            }
-            if (n.action_url) window.location.href = n.action_url;
-        },
+            },
 
-        async markAll() {
-            if (this.unread === 0 || !this.markAllUrl) return;
-            try {
-                await fetch(this.markAllUrl, {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': window.__csrf,
-                        'Accept': 'application/json',
-                    },
-                });
-                this.unread = 0;
-                this.items = this.items.map(i => ({ ...i, is_unread: false }));
-                this.syncSidebarBadge();
-            } catch (e) {}
-        },
-
-        syncSidebarBadge() {
-            const badge = document.getElementById('sidebar-notif-badge');
-            if (!badge) return;
-            if (this.unread > 0) {
-                badge.textContent = this.unread > 99 ? '99+' : this.unread;
-                badge.classList.remove('hidden');
-                badge.classList.add('inline-flex');
-            } else {
-                badge.classList.add('hidden');
-                badge.classList.remove('inline-flex');
-            }
-        },
-    };
-}
+            syncSidebarBadge() {
+                const badge = document.getElementById('sidebar-notif-badge');
+                if (!badge) return;
+                if (this.unread > 0) {
+                    badge.textContent = this.unread > 99 ? '99+' : this.unread;
+                    badge.classList.remove('hidden');
+                    badge.classList.add('inline-flex');
+                } else {
+                    badge.classList.add('hidden');
+                    badge.classList.remove('inline-flex');
+                }
+            },
+        }));
+    });
 </script>
 @endpush
 @endonce
