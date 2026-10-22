@@ -39,38 +39,38 @@
               shadow-xl shadow-gray-200/40 dark:shadow-gray-900/40"
        aria-label="Sidebar navigasi Ketua">
 
-    {{-- ═══════════════ LOGO ═══════════════ --}}
-    <div class="flex items-center gap-3 p-4 border-b border-gray-200 dark:border-gray-800
-                sticky top-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
-        <a href="{{ $safeUrl('ketua.dashboard') }}"
-           class="flex items-center gap-3 flex-1 min-w-0">
+    {{-- ═══════════════ LOGO & ORG BADGE ═══════════════ --}}
+    <div class="flex flex-col border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur p-4">
+        <a href="{{ $safeUrl('ketua.dashboard') }}" class="flex items-center gap-3 min-w-0">
             <div class="relative shrink-0">
-                <img src="{{ asset('images/logo_ukm3.jpeg') }}" alt="Logo"
-                     class="h-10 w-10 rounded-xl ring-2 ring-purple-500/40 object-cover">
-                <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500
-                             border-2 border-white dark:border-gray-900 rounded-full animate-pulse"></span>
+                <img src="{{ asset('images/logo_ukm3.jpeg') }}" alt="Logo" class="h-10 w-10 rounded-xl ring-2 ring-purple-500/40 object-cover">
+                <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full animate-pulse"></span>
             </div>
             <div class="flex flex-col min-w-0">
-                <span class="text-lg font-extrabold text-transparent bg-clip-text
-                             bg-gradient-to-r from-purple-600 to-pink-500 leading-none">
-                    UNICODE
-                </span>
-                <span class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5 tracking-widest">
-                    KETUA PANEL@php
-    $sidebarActiveOrg = \App\Services\OrganizationContext::get();
-@endphp
-
-@if($sidebarActiveOrg)
-    <div class="mt-2 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-center">
-        <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest block truncate">
-            {{ $sidebarActiveOrg->short_name ?? $sidebarActiveOrg->name }}
-        </span>
-    </div>
-@endif
-                </span>
-                
+                <span class="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 leading-none">UNICODE</span>
+                <span class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5 tracking-widest">KETUA PANEL</span>
             </div>
         </a>
+
+        {{-- ═══ BADGE ORGANISASI AKTIF ═══ --}}
+        @php
+            $sidebarActiveOrg = \App\Services\OrganizationContext::get();
+        @endphp
+        @if($sidebarActiveOrg)
+            <div class="mt-3 px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-100 dark:border-indigo-800 flex items-center justify-between">
+                <div class="flex items-center gap-2 truncate">
+                    <div class="w-5 h-5 rounded-md bg-indigo-500 text-white flex items-center justify-center shrink-0">
+                        <i class="fas fa-building text-[8px]"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-widest truncate">
+                        {{ $sidebarActiveOrg->short_name ?? $sidebarActiveOrg->name }}
+                    </span>
+                </div>
+                @if(auth()->user()->activeOrganizations()->count() > 1)
+                    <a href="{{ route('organization.selector') }}" class="text-[9px] font-bold text-indigo-500 hover:text-indigo-700 underline shrink-0">Ubah</a>
+                @endif
+            </div>
+        @endif
     </div>
 
     {{-- ═══════════════ NAV ═══════════════ --}}
