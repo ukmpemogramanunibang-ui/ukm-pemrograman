@@ -41,14 +41,23 @@
 
     {{-- ═══════════════ LOGO & ORG BADGE ═══════════════ --}}
     <div class="flex flex-col border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10 bg-white/95 dark:bg-gray-900/95 backdrop-blur p-4">
-        <a href="{{ $safeUrl('ketua.dashboard') }}" class="flex items-center gap-3 min-w-0">
+        <a href="{{ \App\Support\KetuaMenu::url('ketua.dashboard') }}"
+           class="flex items-center gap-3 min-w-0">
             <div class="relative shrink-0">
-                <img src="{{ asset('images/logo_ukm3.jpeg') }}" alt="Logo" class="h-10 w-10 rounded-xl ring-2 ring-purple-500/40 object-cover">
-                <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-gray-900 rounded-full animate-pulse"></span>
+                <img src="{{ asset('images/logo_ukm3.jpeg') }}" alt="Logo"
+                     class="h-10 w-10 rounded-xl ring-2 ring-purple-500/40 object-cover">
+                <span class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500
+                             border-2 border-white dark:border-gray-900 rounded-full animate-pulse"></span>
             </div>
             <div class="flex flex-col min-w-0">
-                <span class="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-500 leading-none">UNICODE</span>
-                <span class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5 tracking-widest">KETUA PANEL</span>
+                <span class="text-lg font-extrabold text-transparent bg-clip-text
+                             bg-gradient-to-r from-purple-600 to-pink-500 leading-none">
+                    UNICODE
+                </span>
+                <span class="text-[10px] font-semibold text-gray-400 dark:text-gray-500
+                             mt-0.5 tracking-widest">
+                    KETUA PANEL
+                </span>
             </div>
         </a>
 
@@ -57,204 +66,104 @@
             $sidebarActiveOrg = \App\Services\OrganizationContext::get();
         @endphp
         @if($sidebarActiveOrg)
-            <div class="mt-3 px-3 py-2 rounded-xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 border border-indigo-100 dark:border-indigo-800 flex items-center justify-between">
+            <div class="mt-3 px-3 py-2 rounded-xl
+                        bg-gradient-to-r from-indigo-50 to-purple-50
+                        dark:from-indigo-900/20 dark:to-purple-900/20
+                        border border-indigo-100 dark:border-indigo-800
+                        flex items-center justify-between">
                 <div class="flex items-center gap-2 truncate">
-                    <div class="w-5 h-5 rounded-md bg-indigo-500 text-white flex items-center justify-center shrink-0">
+                    <div class="w-5 h-5 rounded-md bg-indigo-500 text-white
+                                flex items-center justify-center shrink-0">
                         <i class="fas fa-building text-[8px]"></i>
                     </div>
-                    <span class="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 uppercase tracking-widest truncate">
+                    <span class="text-[10px] font-bold text-indigo-700 dark:text-indigo-300
+                                 uppercase tracking-widest truncate">
                         {{ $sidebarActiveOrg->short_name ?? $sidebarActiveOrg->name }}
                     </span>
                 </div>
                 @if(auth()->user()->activeOrganizations()->count() > 1)
-                    <a href="{{ route('organization.selector') }}" class="text-[9px] font-bold text-indigo-500 hover:text-indigo-700 underline shrink-0">Ubah</a>
+                    <a href="{{ route('organization.selector') }}"
+                       class="text-[9px] font-bold text-indigo-500 hover:text-indigo-700 underline shrink-0">
+                        Ubah
+                    </a>
                 @endif
             </div>
         @endif
     </div>
 
-    {{-- ═══════════════ NAV ═══════════════ --}}
+    {{-- ═══════════════ NAV — loop dari KetuaMenu ═══════════════ --}}
     <nav class="p-3 space-y-1 pb-6" id="ketua-sidebar-nav">
+        @php
+            $menuItems = \App\Support\KetuaMenu::items();
+        @endphp
 
-        {{-- ═══ DASHBOARD ═══ --}}
-        <a href="{{ $safeUrl('ketua.dashboard') }}"
-           class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition
-                  {{ $safeIs('ketua.dashboard')
-                    ? 'bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/40 dark:to-pink-900/30
-                       text-purple-700 dark:text-purple-300 font-semibold shadow-sm'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-            <i class="fas fa-home w-5 text-center"></i>
-            <span class="text-sm">Dashboard</span>
-        </a>
+        @foreach($menuItems as $index => $item)
+            @php
+                $prevItem = $index > 0 ? $menuItems[$index - 1] : null;
+                $addGap   = $prevItem && $prevItem['type'] === 'group' && $item['type'] === 'link';
+            @endphp
 
-        {{-- ═══ MANAJEMEN (persist) ═══ --}}
-        <div class="sidebar-group pt-2" data-group="manajemen">
-            <button type="button"
-                    data-group-toggle="manajemen"
-                    aria-expanded="{{ $isManajemen ? 'true' : 'false' }}"
-                    class="sidebar-group-toggle flex items-center justify-between w-full
-                           px-3 py-2 rounded-lg cursor-pointer
-                           hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
-                <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    Manajemen
-                </span>
-                <i class="fas fa-chevron-down text-[9px] text-gray-400 transition-transform duration-200 group-chevron"
-                   style="transform: {{ $isManajemen ? 'rotate(180deg)' : 'rotate(0)' }};"></i>
-            </button>
-            <div class="sidebar-group-content space-y-0.5 mt-1 {{ $isManajemen ? '' : 'hidden' }}"
-                 data-group-content="manajemen">
+            @if($item['type'] === 'link')
+                @php
+                    $url      = \App\Support\KetuaMenu::url($item['route']);
+                    $isActive = \App\Support\KetuaMenu::isActive($item['active'] ?? []);
+                    $emph     = ! empty($item['emphasis']);
 
-                <a href="{{ $safeUrl('ketua.manajemen-anggota.index') }}"
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition
-                          {{ $safeIs('ketua.manajemen-anggota.*')
-                            ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-                    <i class="fas fa-users w-5 text-center text-[15px]"></i> Anggota
+                    $activeClass = $isActive
+                        ? ($emph
+                            ? 'bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/40 dark:to-pink-900/30 text-purple-700 dark:text-purple-300 font-semibold shadow-sm'
+                            : 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium')
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20';
+                @endphp
+                <a href="{{ $url }}"
+                   class="flex items-center gap-3 px-3 py-2.5 rounded-xl transition
+                          {{ $addGap ? 'mt-2' : '' }} {{ $activeClass }}">
+                    <i class="fas {{ $item['icon'] }} w-5 text-center"></i>
+                    <span class="flex-1 text-sm">{{ $item['label'] }}</span>
+                    @if(! empty($item['badge']))
+                        <span id="{{ $item['badge'] }}"
+                              class="hidden min-w-[20px] h-5 px-1.5 rounded-full
+                                     bg-red-500 text-white text-[10px] font-bold
+                                     items-center justify-center">0</span>
+                    @endif
                 </a>
-
-                <a href="{{ $safeUrl('ketua.manajemen-pengurus.index') }}"
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition
-                          {{ $safeIs('ketua.manajemen-pengurus.*')
-                            ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-                    <i class="fas fa-user-tie w-5 text-center text-[15px]"></i> Pengurus
-                </a>
-
-                <a href="{{ $safeUrl('ketua.jabatan.index') }}"
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition
-                          {{ $safeIs('ketua.jabatan.*')
-                            ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-                    <i class="fas fa-briefcase w-5 text-center text-[15px]"></i> Jabatan
-                </a>
-
-                <a href="{{ $safeUrl('ketua.divisi.index') }}"
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition
-                          {{ $safeIs('ketua.divisi.*')
-                            ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-                    <i class="fas fa-sitemap w-5 text-center text-[15px]"></i> Divisi
-                </a>
-
-                <a href="{{ $safeUrl('ketua.kelompok.index') }}"
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition
-                          {{ $safeIs('ketua.kelompok.*')
-                            ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-                    <i class="fas fa-layer-group w-5 text-center text-[15px]"></i> Kelompok
-                </a>
-            </div>
-        </div>
-
-        {{-- ═══ KEGIATAN ═══ --}}
-        <a href="{{ $safeUrl('ketua.kegiatan') }}"
-           class="flex items-center gap-3 px-3 py-2.5 mt-2 rounded-xl text-sm transition
-                  {{ $isKegiatan
-                    ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-            <i class="fas fa-calendar-check w-5 text-center"></i>
-            <span>Kegiatan & Event</span>
-        </a>
-
-        {{-- ═══ PRESENSI ═══ --}}
-        <a href="{{ $safeUrl('ketua.presensi') }}"
-           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition
-                  {{ $isPresensi
-                    ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-            <i class="fas fa-qrcode w-5 text-center"></i>
-            <span>Presensi QR</span>
-        </a>
-
-        {{-- ═══ UANGKAS ═══ --}}
-        <a href="{{ $safeUrl('ketua.keuangan') }}"
-           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition
-                  {{ $isKeuangan
-                    ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-            <i class="fas fa-coins w-5 text-center"></i>
-            <span>Uangkas</span>
-        </a>
-
-        {{-- ═══ LEADERPOINT ═══ --}}
-        <a href="{{ $safeUrl('ketua.poin-prestasi') }}"
-           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition
-                  {{ $isLeaderPoin
-                    ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-            <i class="fas fa-medal w-5 text-center"></i>
-            <span>LeaderPoint</span>
-        </a>
-
-        {{-- ═══ KOMUNIKASI (persist) ═══ --}}
-        <div class="sidebar-group pt-2" data-group="komunikasi">
-            <button type="button"
-                    data-group-toggle="komunikasi"
-                    aria-expanded="{{ $isKomun ? 'true' : 'false' }}"
-                    class="sidebar-group-toggle flex items-center justify-between w-full
-                           px-3 py-2 rounded-lg cursor-pointer
-                           hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
-                <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
-                    Komunikasi
-                </span>
-                <i class="fas fa-chevron-down text-[9px] text-gray-400 transition-transform duration-200 group-chevron"
-                   style="transform: {{ $isKomun ? 'rotate(180deg)' : 'rotate(0)' }};"></i>
-            </button>
-            <div class="sidebar-group-content space-y-0.5 mt-1 {{ $isKomun ? '' : 'hidden' }}"
-                 data-group-content="komunikasi">
-                <a href="{{ $safeUrl('ketua.pengumuman.index') }}"
-                   class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition
-                          {{ $safeIs('ketua.pengumuman.*')
-                            ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-                    <i class="fas fa-bullhorn w-5 text-center text-[15px]"></i> Pengumuman
-                </a>
-            </div>
-        </div>
-
-        {{-- ═══ APPROVAL ═══ --}}
-        <a href="{{ $safeUrl('ketua.approval') }}"
-           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition
-                  {{ $isApproval
-                    ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-            <i class="fas fa-check-double w-5 text-center"></i>
-            <span>Approval Center</span>
-        </a>
-
-        {{-- ═══ LAPORAN ═══ --}}
-        <a href="{{ $safeUrl('ketua.laporan') }}"
-           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition
-                  {{ $isLaporan
-                    ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-            <i class="fas fa-chart-line w-5 text-center"></i>
-            <span>Laporan & Analitik</span>
-        </a>
-
-        {{-- ═══ NOTIFICATION ═══ --}}
-        <a href="{{ $safeUrl('ketua.notifications.index') }}"
-           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition
-                  {{ $isNotif
-                    ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-            <i class="fas fa-bell w-5 text-center"></i>
-            <span class="flex-1">Notification Center</span>
-            <span id="sidebar-notif-badge"
-                  class="hidden min-w-[20px] h-5 px-1.5 rounded-full
-                         bg-red-500 text-white text-[10px] font-bold
-                         items-center justify-center">0</span>
-        </a>
-
-        {{-- ═══ PENGATURAN ═══ --}}
-        <a href="{{ $safeUrl('ketua.pengaturan') }}"
-           class="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition
-                  {{ $isPengaturan
-                    ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
-            <i class="fas fa-cog w-5 text-center"></i>
-            <span>Pengaturan</span>
-        </a>
+            @else
+                @php
+                    $isOpen = \App\Support\KetuaMenu::isActive($item['active'] ?? []);
+                @endphp
+                <div class="sidebar-group pt-2" data-group="{{ $item['key'] }}">
+                    <button type="button"
+                            data-group-toggle="{{ $item['key'] }}"
+                            aria-expanded="{{ $isOpen ? 'true' : 'false' }}"
+                            class="sidebar-group-toggle flex items-center justify-between w-full
+                                   px-3 py-2 rounded-lg cursor-pointer
+                                   hover:bg-gray-50 dark:hover:bg-gray-800/50 transition">
+                        <span class="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                            {{ $item['label'] }}
+                        </span>
+                        <i class="fas fa-chevron-down text-[9px] text-gray-400 transition-transform duration-200 group-chevron"
+                           style="transform: {{ $isOpen ? 'rotate(180deg)' : 'rotate(0)' }};"></i>
+                    </button>
+                    <div class="sidebar-group-content space-y-0.5 mt-1 {{ $isOpen ? '' : 'hidden' }}"
+                         data-group-content="{{ $item['key'] }}">
+                        @foreach($item['children'] as $child)
+                            @php
+                                $childUrl    = \App\Support\KetuaMenu::url($child['route']);
+                                $childActive = \App\Support\KetuaMenu::isActive($child['active'] ?? []);
+                            @endphp
+                            <a href="{{ $childUrl }}"
+                               class="flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition
+                                      {{ $childActive
+                                        ? 'bg-purple-100/70 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium'
+                                        : 'text-gray-700 dark:text-gray-300 hover:bg-purple-50 dark:hover:bg-purple-900/20' }}">
+                                <i class="fas {{ $child['icon'] }} w-5 text-center text-[15px]"></i>
+                                <span>{{ $child['label'] }}</span>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+        @endforeach
 
         {{-- ═══ LOGOUT ═══ --}}
         <div class="pt-4 mt-4 border-t border-gray-200 dark:border-gray-800">
