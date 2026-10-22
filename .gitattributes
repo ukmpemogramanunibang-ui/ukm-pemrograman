@@ -1,44 +1,10 @@
-/node_modules
-/public/build
-/public/hot
-/public/storage
-/storage/*.key
-/vendor
-.env
-.env.backup
-.env.production
-.phpunit.result.cache
-Homestead.json
-Homestead.yaml
-auth.json
-npm-debug.log
-yarn-error.log
-/.fleet
-/.idea
-/.nova
-/.vscode
-/.zed
-.DS_Store
-
-# ── Backup & Logs ──
-*.log
-*.bak
-*.bak_*
-*.BROKEN_*
-routes_backup/
-migrations_backup/
-app_backup/
-debug-routes.txt
-route_list_sebelum.*
-
-# ── Audit & Debug Lokal ──
-storage/audit/
-storage/backups/
-*.bundle
-schema_*.txt
-routes_valid.txt
-sidebar_routes.txt
-test-callback.ps1
-
-# ── Typo & File Rusak ──
-*.php.php
+* text=auto eol=lf
+*.blade.php text eol=lf
+*.php text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
