@@ -14,6 +14,7 @@ class LmsGroup extends Model
     protected $table = 'lms_groups';
 
     protected $fillable = [
+        'organization_id', // ← TAMBAHKAN INI
         'uuid', 'name',  'code', 'description', 'cover_path', 'cover_images',
         'creator_id', 'status', 'items_count', 'tasks_count', 'materials_count',
         'archived_at', 'archived_by', 'deleted_by', 'delete_reason', 'max_members',
@@ -25,13 +26,23 @@ class LmsGroup extends Model
         'deleted_at'   => 'datetime',
     ];
 
-protected static function booted(): void
-{
-    static::creating(function (self $m) {
-        $m->uuid ??= (string) \Illuminate\Support\Str::uuid();
-        $m->code ??= 'LMS-' . strtoupper(\Illuminate\Support\Str::random(6));
-    });
-}
+    protected static function booted(): void
+    {
+        static::creating(function (self $m) {
+            $m->uuid ??= (string) \Illuminate\Support\Str::uuid();
+            $m->code ??= 'LMS-' . strtoupper(\Illuminate\Support\Str::random(6));
+            if (empty($m->organization_id)) {
+                $m->organization_id = \App\Services\OrganizationContext::id(); // ← TAMBAHKAN INI
+            }
+        });
+
+        static::addGlobalScope('organization', function ($builder) {
+            $orgId = \App\Services\OrganizationContext::id();
+            if ($orgId) {
+                $builder->where('lms_groups.organization_id', $orgId); // ← TAMBAHKAN INI
+            }
+        });
+    }
 
     public function creator()      { return $this->belongsTo(User::class, 'creator_id'); }
     public function items()        { return $this->hasMany(LmsItem::class, 'group_id'); }

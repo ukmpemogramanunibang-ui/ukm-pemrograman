@@ -14,6 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
+    
         health: '/up',
         apiPrefix: 'api',
     )
@@ -74,6 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // Impersonation
             'impersonate.require' => \App\Http\Middleware\RequireImpersonation::class,
             'impersonate.guard'   => \App\Http\Middleware\ImpersonationGuard::class,
+             'org.context' => \App\Http\Middleware\SetOrganizationContext::class,
         ]);
 
         /* ---------- 6. REDIRECT SAFETY ---------- */

@@ -12,7 +12,9 @@ class DashboardController extends Controller
 {
     public function index()
     {
-        // ========== STATISTIK INVOICE ==========
+        $orgId = \App\Services\OrganizationContext::id();
+
+        // ========== STATISTIK INVOICE (Otomatis terfilter Global Scope) ==========
         $totalInvoices   = Invoice::count();
         $pendingInvoices = Invoice::where('status', 'pending')->count();
         $paidInvoices    = Invoice::where('status', 'paid')->count();
@@ -21,11 +23,18 @@ class DashboardController extends Controller
         $totalPayments = PaymentTransaction::sum('amount') ?? 0;
         $totalPenalty  = Invoice::sum('penalty') ?? 0;
 
-        $totalMembers   = User::where('level_id', 5)->count();
-        $totalOfficials = User::where('level_id', 4)->count();
+        // ========== STATISTIK ANGGOTA (Spesifik Organisasi) ==========
+        // Hitung dari OrganizationMembership, bukan dari tabel users global
+        $totalMembers = \App\Models\OrganizationMembership::where('organization_id', $orgId)
+            ->where('membership_status', 'active')
+            ->count();
 
-        // ========== STATISTIK FEE PLAN ==========
-        // Pakai try-catch agar kalau tabel fee_plans belum ada, tidak error
+        $totalOfficials = \App\Models\OrganizationMembership::where('organization_id', $orgId)
+            ->where('access_role', 'officer')
+            ->where('membership_status', 'active')
+            ->count();
+
+        // ========== STATISTIK FEE PLAN (Otomatis terfilter Global Scope) ==========
         try {
             $totalFeePlans = FeePlan::count();
 
@@ -52,13 +61,11 @@ class DashboardController extends Controller
                 ->limit(6)
                 ->get();
 
-            // Estimasi pemasukan bulanan dari semua plan aktif
             $estimatedMonthlyIncome = $activeFeePlans->sum(function ($plan) {
                 $targetCount = $this->countTargetUsers($plan);
                 return (float) $plan->amount * $targetCount;
             });
 
-            // Fee plan yang due_day-nya dalam 7 hari ke depan
             $today = now()->day;
             $dueThisWeek = FeePlan::query()
                 ->where('status', 'active')
@@ -66,7 +73,6 @@ class DashboardController extends Controller
                 ->orderBy('due_day')
                 ->get();
         } catch (\Throwable $e) {
-            // Fallback kalau ada error (misal tabel belum migrate)
             \Log::warning('[Financial Dashboard] Fee plan stats gagal: ' . $e->getMessage());
             $totalFeePlans          = 0;
             $totalActiveFeePlans    = 0;
@@ -86,21 +92,10 @@ class DashboardController extends Controller
             ->values();
 
         return view('owner.financial.dashboard', compact(
-            'totalInvoices',
-            'pendingInvoices',
-            'paidInvoices',
-            'overdueInvoices',
-            'totalPayments',
-            'totalPenalty',
-            'totalMembers',
-            'totalOfficials',
-            'monthlyData',
-            // === FEE PLAN STATS ===
-            'totalFeePlans',
-            'activeFeePlans',
-            'totalActiveFeePlans',
-            'estimatedMonthlyIncome',
-            'dueThisWeek',
+            'totalInvoices', 'pendingInvoices', 'paidInvoices', 'overdueInvoices',
+            'totalPayments', 'totalPenalty', 'totalMembers', 'totalOfficials',
+            'monthlyData', 'totalFeePlans', 'activeFeePlans', 
+            'totalActiveFeePlans', 'estimatedMonthlyIncome', 'dueThisWeek'
         ));
     }
 

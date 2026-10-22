@@ -32,11 +32,8 @@ public function up(): void
     });
 }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::dropIfExists('organizations');
+        Schema::dropIfExists('organizations'); // ✅ bukan 'organizatios'
     }
 };

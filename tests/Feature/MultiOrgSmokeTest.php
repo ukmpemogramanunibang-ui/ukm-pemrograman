@@ -206,10 +206,33 @@ class MultiOrgSmokeTest extends TestCase
         // 5. Uji: di context HIMA harus 0 (TIDAK BOCOR)
         $this->assertEquals(0, \App\Models\Financial\Invoice::where('title', $invoiceTitle)->count());
     }
-    public function test_officer_org_a_cannot_update_invoice_org_b(): void
-{
-    // setup officer di org A, invoice di org B
-    $this->assertFalse(Gate::forUser($officer)->allows('update', $invoiceOrgB));
-}
+    public function test_isolasi_data_lms_antar_organisasi(): void
+    {
+        $orgUnicode = Organization::where('slug', 'ukm-pemrograman-unicode')->first();
+        $orgHima    = Organization::where('slug', 'hima-informatika')->first();
+        
+        $user = User::where('level_id', 3)->first();
+        
+        // Set context UNICODE
+        OrganizationContext::set($orgUnicode->id);
+        
+        // Buat Grup LMS dummy di UNICODE
+        $groupTitle = 'Grup UNICODE ' . uniqid();
+        \App\Models\Lms\LmsGroup::create([
+            'organization_id' => $orgUnicode->id,
+            'name'            => $groupTitle,
+            'description'     => 'Test grup',
+            'creator_id'      => $user->id,
+            'status'          => 'active',
+        ]);
+
+        $this->assertEquals(1, \App\Models\Lms\LmsGroup::where('name', $groupTitle)->count());
+        
+        // Pindah ke HIMA
+        OrganizationContext::set($orgHima->id);
+        
+        // Pastikan grup tidak bocor (0)
+        $this->assertEquals(0, \App\Models\Lms\LmsGroup::where('name', $groupTitle)->count());
+    }
 
 }

@@ -3,37 +3,60 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
+    /**
+     * Daftar tabel yang perlu ditambah `organization_id`.
+     * ⚠️  SESUAIKAN dengan daftar di file asli Anda.
+     */
+    private array $tables = [
+        'attendance_sessions',
+        'attendance_records',
+        'announcements',
+        'invoices',
+        'invoice_items',
+        'lms_groups',
+        'lms_items',
+        // ... tambahkan semua tabel lain dari file asli ...
+    ];
+
     public function up(): void
     {
-        // 1. Tambahkan ke tabel absensi (nullable dulu agar data lama aman)
-        Schema::table('attendance_sessions', function (Blueprint $table) {
-            $table->unsignedBigInteger('organization_id')->nullable()->after('id')->index();
-        });
+        foreach ($this->tables as $tableName) {
+            // 🛡️ Guard 1: tabel harus ada
+            if (! Schema::hasTable($tableName)) {
+                continue;
+            }
 
-        // 2. Tambahkan ke tabel tagihan/keuangan
-        Schema::table('invoices', function (Blueprint $table) {
-            $table->unsignedBigInteger('organization_id')->nullable()->after('id')->index();
-        });
+            // 🛡️ Guard 2: kolom belum ada (INI YANG HILANG DI FILE ANDA)
+            if (Schema::hasColumn($tableName, 'organization_id')) {
+                continue;
+            }
 
-        // 3. Set data lama (existing) ke UNICODE (id = 1) secara otomatis
-        // Asumsi ID 1 adalah UNICODE
-        $unicodeId = DB::table('organizations')->where('slug', 'ukm-pemrograman-unicode')->value('id') ?? 1;
-        
-        DB::table('attendance_sessions')->whereNull('organization_id')->update(['organization_id' => $unicodeId]);
-        DB::table('invoices')->whereNull('organization_id')->update(['organization_id' => $unicodeId]);
+            Schema::table($tableName, function (Blueprint $t) {
+                $t->foreignId('organization_id')
+                  ->nullable()
+                  ->after('id')
+                  ->index();
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('attendance_sessions', function (Blueprint $table) {
-            $table->dropColumn('organization_id');
-        });
-        Schema::table('invoices', function (Blueprint $table) {
-            $table->dropColumn('organization_id');
-        });
+        foreach ($this->tables as $tableName) {
+            if (! Schema::hasTable($tableName)) {
+                continue;
+            }
+            if (! Schema::hasColumn($tableName, 'organization_id')) {
+                continue;
+            }
+
+            Schema::table($tableName, function (Blueprint $t) {
+                try { $t->dropForeign(['organization_id']); } catch (\Throwable $e) {}
+                $t->dropColumn('organization_id');
+            });
+        }
     }
 };

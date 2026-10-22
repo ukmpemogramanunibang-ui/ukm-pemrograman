@@ -22,7 +22,7 @@ return new class extends Migration
     $table->boolean('can_view')->default(true);
     $table->boolean('can_announcement')->default(false);
     $table->boolean('can_message')->default(false);
-    $table->string('custom_position')->nullable()->after('position');
+$table->string('custom_position')->nullable();
     $table->boolean('can_view_members')->default(true);
     $table->boolean('can_manage_members')->default(false);
     $table->boolean('can_manage_content')->default(false);

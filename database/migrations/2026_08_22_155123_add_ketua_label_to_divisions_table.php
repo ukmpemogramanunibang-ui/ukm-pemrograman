@@ -8,15 +8,20 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('divisions', function (Blueprint $table) {
-            $table->string('ketua_label')->default('Ketua')->after('max_members');
-        });
+        // Guard: kolom mungkin sudah dibuat di create_divisions_table
+        if (! Schema::hasColumn('divisions', 'ketua_label')) {
+            Schema::table('divisions', function (Blueprint $table) {
+                $table->string('ketua_label')->default('Ketua');
+            });
+        }
     }
 
     public function down(): void
     {
-        Schema::table('divisions', function (Blueprint $table) {
-            $table->dropColumn('ketua_label');
-        });
+        if (Schema::hasColumn('divisions', 'ketua_label')) {
+            Schema::table('divisions', function (Blueprint $table) {
+                $table->dropColumn('ketua_label');
+            });
+        }
     }
 };

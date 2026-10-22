@@ -6,35 +6,60 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-       Schema::create('competition_matches', function (Blueprint $table) {
-    $table->id();
-    $table->foreignId('competition_id')->constrained()->onDelete('cascade');
-    $table->foreignId('round_id')->constrained('competition_rounds')->onDelete('cascade');
-    $table->integer('match_number');
-    $table->foreignId('participant_a_id')->nullable()->constrained('competition_participants')->onDelete('set null');
-    $table->foreignId('participant_b_id')->nullable()->constrained('competition_participants')->onDelete('set null');
-    $table->foreignId('winner_id')->nullable()->constrained('competition_participants')->onDelete('set null');
-    $table->foreignId('loser_id')->nullable()->constrained('competition_participants')->onDelete('set null');
-    $table->decimal('score_a', 10, 2)->default(0);
-    $table->decimal('score_b', 10, 2)->default(0);
-    $table->string('status')->default('upcoming'); // upcoming, active, completed, cancelled
-    $table->foreignId('game_session_id')->nullable()->constrained('game_sessions')->onDelete('set null');
-    $table->timestamp('started_at')->nullable();
-    $table->timestamp('finished_at')->nullable();
-    $table->timestamps();
-});
+        // Guard: cegah error jika tabel sudah dibuat oleh migration lain
+        if (Schema::hasTable('competition_matches')) {
+            return;
+        }
+
+        Schema::create('competition_matches', function (Blueprint $table) {
+            $table->id();
+
+            // Relasi kompetisi — tabel ini PASTI ada
+            $table->foreignId('competition_id')
+                ->constrained('competitions')
+                ->cascadeOnDelete();
+
+            $table->foreignId('round_id')
+                ->constrained('competition_rounds')
+                ->cascadeOnDelete();
+
+            $table->integer('match_number');
+
+            // ⚠️ Peserta — tabel competition_participants TIDAK ADA migration-nya
+            // Pakai kolom biasa tanpa FK constraint agar migrasi tidak gagal.
+            // Kalau nanti tabel competition_participants dibuat, tinggal tambah migration untuk FK-nya.
+            $table->unsignedBigInteger('participant_a_id')->nullable();
+            $table->unsignedBigInteger('participant_b_id')->nullable();
+            $table->unsignedBigInteger('winner_id')->nullable();
+            $table->unsignedBigInteger('loser_id')->nullable();
+
+            $table->decimal('score_a', 10, 2)->default(0);
+            $table->decimal('score_b', 10, 2)->default(0);
+
+            $table->string('status', 20)->default('upcoming');
+
+            // Relasi ke game session — tabel game_sessions SUDAH ADA (dibuat 2026_08_29_081557)
+            $table->foreignId('game_session_id')
+                ->nullable()
+                ->constrained('game_sessions')
+                ->nullOnDelete();
+
+            $table->timestamp('started_at')->nullable();
+            $table->timestamp('finished_at')->nullable();
+            $table->timestamps();
+
+            // Index untuk query umum
+            $table->index(['competition_id', 'status'], 'cm_comp_status_idx');
+            $table->index(['round_id', 'match_number'], 'cm_round_num_idx');
+            $table->index('participant_a_id', 'cm_part_a_idx');
+            $table->index('participant_b_id', 'cm_part_b_idx');
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        //
+        Schema::dropIfExists('competition_matches');
     }
 };

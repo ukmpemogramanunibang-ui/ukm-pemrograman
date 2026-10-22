@@ -146,7 +146,40 @@
                           text-gray-700 dark:text-gray-200 placeholder-gray-400
                           focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition">
         </div>
+        {{-- ═══ ORG SWITCHER ═══ --}}
+        @php
+            $myOrgs = auth()->user()->activeOrganizations()->get();
+            $activeOrg = \App\Services\OrganizationContext::get();
+        @endphp
 
+        @if($myOrgs->count() > 1)
+        <div class="relative group hidden sm:block">
+            <button type="button" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition">
+                <i class="fas fa-building text-purple-600 dark:text-purple-400 text-xs"></i>
+                <span class="text-xs font-bold text-purple-700 dark:text-purple-300 truncate max-w-[100px]">
+                    {{ $activeOrg ? $activeOrg->short_name : 'Pilih Org' }}
+                </span>
+                <i class="fas fa-chevron-down text-[9px] text-purple-500"></i>
+            </button>
+            
+            <div class="absolute right-0 mt-2 w-56 rounded-xl bg-white dark:bg-gray-900 shadow-xl border border-gray-100 dark:border-gray-800 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                <div class="p-2 space-y-1">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-2 py-1 mb-1">Pindah Organisasi</p>
+                    @foreach($myOrgs as $org)
+                        <form method="POST" action="{{ route('organization.switch', $org) }}">
+                            @csrf
+                            <button type="submit" class="w-full text-left px-3 py-2 rounded-lg text-xs font-medium hover:bg-gray-50 dark:hover:bg-gray-800 flex items-center justify-between {{ $activeOrg && $activeOrg->id === $org->id ? 'text-purple-600 bg-purple-50/50 dark:bg-purple-900/20' : 'text-gray-700 dark:text-gray-300' }}">
+                                <span class="truncate pr-2">{{ $org->name }}</span>
+                                @if($activeOrg && $activeOrg->id === $org->id)
+                                    <i class="fas fa-check text-[10px]"></i>
+                                @endif
+                            </button>
+                        </form>
+                    @endforeach
+                </div>
+            </div>
+        </div>
+        @endif
         {{-- Dark mode toggle --}}
         <button id="dark-toggle" type="button" aria-label="Toggle tema"
                 class="w-9 h-9 rounded-lg flex items-center justify-center

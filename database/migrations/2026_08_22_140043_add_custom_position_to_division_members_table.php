@@ -6,23 +6,22 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::table('division_members', function (Blueprint $table) {
-                   $table->string('custom_position')->nullable()->after('position');
-        });
+        // Kolom mungkin sudah dibuat di create_division_members_table
+        if (! Schema::hasColumn('division_members', 'custom_position')) {
+            Schema::table('division_members', function (Blueprint $table) {
+                $table->string('custom_position')->nullable()->after('position');
+            });
+        }
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        Schema::table('division_members', function (Blueprint $table) {
-            //
-        });
+        if (Schema::hasColumn('division_members', 'custom_position')) {
+            Schema::table('division_members', function (Blueprint $table) {
+                $table->dropColumn('custom_position');
+            });
+        }
     }
 };

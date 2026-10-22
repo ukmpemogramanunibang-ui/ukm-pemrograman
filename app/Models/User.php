@@ -34,6 +34,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Str;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -145,6 +146,15 @@ class User extends Authenticatable
         ];
     }
 
+
+protected static function booted(): void
+{
+    static::creating(function (User $user) {
+        if (empty($user->user_uuid)) {
+            $user->user_uuid = (string) Str::uuid();
+        }
+    });
+}
     /* ═══════════════════════════════════════════════════════
      | LIFECYCLE
      | Guard "ketua hanya 1 global" DIHAPUS.

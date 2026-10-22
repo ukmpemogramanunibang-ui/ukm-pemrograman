@@ -14,7 +14,7 @@ return new class extends Migration {
             $t->foreignId('group_id')->nullable()->constrained('groups')->nullOnDelete();
             $t->foreignId('attendance_session_id')->nullable()->constrained('attendance_sessions')->nullOnDelete();
             $t->foreignId('attendance_record_id')->nullable()->constrained('attendance_records')->nullOnDelete();
-            $t->foreignId('rule_id')->nullable()->constrained('attendance_penalty_rules')->nullOnDelete();
+            $t->foreignId('rule_id')->nullable()->constrained('penalty_rules')->nullOnDelete();
 
             $t->string('penalty_code', 64)->nullable();
             $t->string('penalty_type', 32);

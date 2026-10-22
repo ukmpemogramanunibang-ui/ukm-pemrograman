@@ -26,7 +26,10 @@ protected $fillable = [
         'paid_at' => 'datetime',
         'meta' => 'array',
     ];
-
+    protected static function newFactory()
+    {
+        return \Database\Factories\InvoiceFactory::new();
+    }
     public function user()
     {
         return $this->belongsTo(User::class);

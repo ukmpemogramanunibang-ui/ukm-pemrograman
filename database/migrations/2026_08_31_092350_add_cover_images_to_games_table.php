@@ -6,17 +6,22 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
-{
-    Schema::table('games', function (Blueprint $table) {
-        $table->json('cover_images')->nullable()->after('description');
-    });
-}
+    public function up(): void
+    {
+        // Guard: kolom mungkin sudah dibuat di create_games_table atau migration add_* sebelumnya
+        if (! Schema::hasColumn('games', 'cover_images')) {
+            Schema::table('games', function (Blueprint $table) {
+                $table->json('cover_images')->nullable()->after('description');
+            });
+        }
+    }
 
-public function down()
-{
-    Schema::table('games', function (Blueprint $table) {
-        $table->dropColumn('cover_images');
-    });
-}
+    public function down(): void
+    {
+        if (Schema::hasColumn('games', 'cover_images')) {
+            Schema::table('games', function (Blueprint $table) {
+                $table->dropColumn('cover_images');
+            });
+        }
+    }
 };

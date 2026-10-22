@@ -48,6 +48,7 @@ protected $fillable = [
     'archived_by',
     'deleted_by',
     'delete_reason',
+    'organization_id',
 ];
 
 protected $casts = [
@@ -71,10 +72,20 @@ protected $casts = [
     /* =========================================================
      | BOOT — Auto uuid
      * ========================================================= */
-    protected static function booted(): void
+ protected static function booted(): void
     {
         static::creating(function (self $m) {
             $m->uuid ??= (string) Str::uuid();
+            if (empty($m->organization_id)) {
+                $m->organization_id = \App\Services\OrganizationContext::id();
+            }
+        });
+
+        static::addGlobalScope('organization', function ($builder) {
+            $orgId = \App\Services\OrganizationContext::id();
+            if ($orgId) {
+                $builder->where('lms_items.organization_id', $orgId);
+            }
         });
     }
 public function hasUnlimitedDeadline(): bool

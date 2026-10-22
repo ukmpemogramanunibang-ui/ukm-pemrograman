@@ -2525,9 +2525,9 @@ Route::middleware(['owner.explore.bypass', 'verified', 'no-cache'])
             \Cookie::queue(\Cookie::forget($name));
         }
 
-        return redirect('/login')
-            ->with('status', 'Anda telah keluar sepenuhnya.')
-            ->withHeaders([
+        return redirect('/')
+    ->with('status', 'Anda telah keluar sepenuhnya.')
+    ->withHeaders([
                 'Cache-Control' => 'no-store, no-cache, must-revalidate, max-age=0',
                 'Pragma'        => 'no-cache',
                 'Expires'       => 'Sat, 01 Jan 2000 00:00:00 GMT',

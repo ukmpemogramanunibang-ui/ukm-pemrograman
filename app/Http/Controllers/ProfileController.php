@@ -22,7 +22,7 @@ class ProfileController extends Controller
      * Support: data diri, avatar, skills, social media, portfolio links,
      *          preferences (JSON), password, PIN.
      */
-    public function update(Request $request)
+public function update(Request $request): RedirectResponse
     {
         $user = auth()->user();
 
@@ -105,13 +105,18 @@ class ProfileController extends Controller
         }
         unset($validated['avatar']);
 
-        $user->update($validated);
+        /* ── Reset verifikasi email kalau email berubah ── */
+if (isset($validated['email']) && $validated['email'] !== $user->email) {
+    $validated['email_verified_at'] = null;
+}
+
+$user->update($validated);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->json(['ok' => true, 'message' => 'Profil diperbarui']);
         }
 
-        return back()->with('success', 'Profil berhasil diperbarui.');
+       return redirect()->route('profile.edit')->with('success', 'Profil berhasil diperbarui.');
     }
 
     public function showPublic(User $user)
