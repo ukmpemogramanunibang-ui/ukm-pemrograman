@@ -56,8 +56,19 @@
                     UNICODE
                 </span>
                 <span class="text-[10px] font-semibold text-gray-400 dark:text-gray-500 mt-0.5 tracking-widest">
-                    KETUA PANEL
+                    KETUA PANEL@php
+    $sidebarActiveOrg = \App\Services\OrganizationContext::get();
+@endphp
+
+@if($sidebarActiveOrg)
+    <div class="mt-2 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800 text-center">
+        <span class="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest block truncate">
+            {{ $sidebarActiveOrg->short_name ?? $sidebarActiveOrg->name }}
+        </span>
+    </div>
+@endif
                 </span>
+                
             </div>
         </a>
     </div>
