@@ -1,0 +1,239 @@
+/* ================================================================
+ * APP.CSS — UNICODE UKM Pemrograman
+ * Urutan WAJIB:
+ *   1. @import URL (harus di atas, sebelum rule lain)
+ *   2. @import package (node_modules)
+ *   3. @tailwind directives
+ *   4. @import modul lokal
+ * ================================================================ */
+
+/* ---------------------------------------------------------------
+ * 1. EXTERNAL URL IMPORTS — HARUS PALING ATAS
+ * ------------------------------------------------------------- */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+
+/* ---------------------------------------------------------------
+ * 2. NODE_MODULES IMPORTS
+ * ------------------------------------------------------------- */
+@import "@fortawesome/fontawesome-free/css/all.min.css";
+@import "flowbite/src/themes/default";
+@import "animate.css";
+@import "aos/dist/aos.css";
+@import "swiper/swiper-bundle.css";
+@import "sweetalert2/dist/sweetalert2.min.css";
+
+/* ---------------------------------------------------------------
+ * 3. TAILWIND
+ * Catatan: pakai v3 directives (sesuai tailwind.config CDN di Blade).
+ * Kalau Anda migrasi ke Tailwind v4, ganti jadi:
+ *     @import "tailwindcss";
+ * ------------------------------------------------------------- */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------
+ * 4. MODUL LOKAL
+ * ------------------------------------------------------------- */
+@import "./variables.css";
+@import "./utilities.css";
+@import "./components.css";
+@import "./responsive.css";
+@import "./dashboard.css";
+@import "./landing.css";
+@import "./login.css";
+@import "./navbar.css";
+@import "./footer.css";
+
+/* ================================================================
+ * 5. GLOBAL BASE
+ * ================================================================ */
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+        scroll-behavior: smooth;
+    }
+
+    html, body {
+        overflow-x: hidden;
+        max-width: 100vw;
+    }
+
+    body {
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        font-feature-settings: "cv02","cv03","cv04","cv11";
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    img, video, canvas, svg, iframe {
+        max-width: 100%;
+        height: auto;
+    }
+
+    /* Semua form input di iOS min 16px cegah auto-zoom */
+    @media (pointer: coarse) {
+        input, select, textarea {
+            font-size: 16px;
+        }
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 999px;
+    }
+    .dark ::-webkit-scrollbar-thumb { background: #475569; }
+}
+
+/* ================================================================
+ * 6. COMPONENTS / UTILITIES DEVICE-AWARE
+ * ================================================================ */
+@layer components {
+
+    /* ---------------------------------------------------------
+     * .responsive-table
+     * Table otomatis berubah jadi card di viewport < 768px.
+     * Setiap <td> WAJIB punya data-label="Nama Kolom".
+     * --------------------------------------------------------- */
+    .responsive-table { width: 100%; }
+
+    @media (max-width: 767.98px) {
+        .responsive-table table,
+        .responsive-table thead,
+        .responsive-table tbody,
+        .responsive-table tr,
+        .responsive-table th,
+        .responsive-table td { display: block; width: 100%; }
+
+        .responsive-table thead {
+            position: absolute;
+            left: -9999px;
+            opacity: 0;
+        }
+
+        .responsive-table tr {
+            background: #fff;
+            border-radius: .75rem;
+            padding: .85rem .95rem;
+            margin-bottom: .6rem;
+            border: 1px solid rgb(226 232 240);
+            box-shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+        }
+        .dark .responsive-table tr {
+            background: rgb(30 41 59 / .65);
+            border-color: rgb(255 255 255 / .06);
+            box-shadow: 0 1px 3px rgba(0,0,0,.4);
+        }
+
+        .responsive-table td {
+            padding: .35rem 0 !important;
+            border: none !important;
+            text-align: left !important;
+            font-size: .875rem;
+            line-height: 1.4;
+        }
+
+        .responsive-table td::before {
+            content: attr(data-label);
+            display: block;
+            font-size: .65rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .05em;
+            color: #64748b;
+            margin-bottom: .1rem;
+        }
+        .dark .responsive-table td::before { color: #94a3b8; }
+
+        .responsive-table tr:has(td[colspan]) {
+            background: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+        }
+        .responsive-table tr:has(td[colspan]) td {
+            padding: 2rem 0 !important;
+            text-align: center !important;
+        }
+    }
+
+    /* ---------------------------------------------------------
+     * .mobile-stack-grid — grid 2/3 kolom yang otomatis stack
+     * --------------------------------------------------------- */
+    .mobile-stack-grid {
+        @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4;
+    }
+
+    /* ---------------------------------------------------------
+     * .stat-tile — tile statistik tinggi seragam
+     * --------------------------------------------------------- */
+    .stat-tile {
+        @apply relative overflow-hidden rounded-2xl p-3.5 sm:p-4
+               bg-white dark:bg-slate-800/80
+               shadow-lg ring-1 ring-slate-200/70 dark:ring-white/5
+               flex flex-col justify-between min-h-[110px];
+    }
+
+    /* ---------------------------------------------------------
+     * .btn-touch — tombol min 44px untuk aksesibilitas
+     * --------------------------------------------------------- */
+    .btn-touch {
+        @apply inline-flex items-center justify-center gap-2
+               min-h-[44px] px-4 py-2.5 rounded-xl
+               font-semibold text-sm transition
+               active:scale-[0.98];
+    }
+
+    /* ---------------------------------------------------------
+     * .safe-top / .safe-bottom — dukung iPhone notch
+     * --------------------------------------------------------- */
+    .safe-top    { padding-top:    env(safe-area-inset-top, 0); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+    .safe-x      { padding-left:   env(safe-area-inset-left, 0);
+                   padding-right:  env(safe-area-inset-right, 0); }
+    .safe-all    { padding: env(safe-area-inset-top, 0)
+                            env(safe-area-inset-right, 0)
+                            env(safe-area-inset-bottom, 0)
+                            env(safe-area-inset-left, 0); }
+}
+
+/* ================================================================
+ * 7. GLOBAL DEVICE-SPECIFIC OVERRIDES
+ * ================================================================ */
+
+/* Mobile — sembunyikan elemen .desktop-only */
+@media (max-width: 767.98px) {
+    .desktop-only { display: none !important; }
+}
+
+/* Desktop — sembunyikan elemen .mobile-only */
+@media (min-width: 768px) {
+    .mobile-only { display: none !important; }
+}
+
+/* Tablet only */
+@media (max-width: 1023.98px) {
+    .tablet-up-only { display: none !important; }
+}
+
+/* Touch device — beri ruang lebih untuk target */
+@media (pointer: coarse) {
+    button:not(.no-min-touch),
+    a[role="button"]:not(.no-min-touch),
+    [role="button"]:not(.no-min-touch) {
+        min-height: 40px;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .01ms !important;
+        scroll-behavior: auto !important;
+    }
+}

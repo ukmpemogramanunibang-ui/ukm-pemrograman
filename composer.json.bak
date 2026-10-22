@@ -1,0 +1,229 @@
+{
+    "$schema": "https://getcomposer.org/schema.json",
+    "name": "unicode/ukm-management",
+    "type": "project",
+    "description": "Sistem Manajemen UKM UNICODE — Laravel 12",
+    "keywords": ["laravel", "ukm", "unicode", "management"],
+    "license": "proprietary",
+    "require": {
+        "php": "^8.3",
+        "ext-ctype": "*",
+        "ext-curl": "*",
+        "ext-dom": "*",
+        "ext-fileinfo": "*",
+        "ext-filter": "*",
+        "ext-gd": "*",
+        "ext-hash": "*",
+        "ext-iconv": "*",
+        "ext-intl": "*",
+        "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
+        "ext-pdo": "*",
+        "ext-pdo_mysql": "*",
+        "ext-sodium": "*",
+        "ext-tokenizer": "*",
+        "ext-xml": "*",
+        "ext-zip": "*",
+        "barryvdh/laravel-dompdf": "^3.1",
+        "brick/money": "^0.10",
+        "chillerlan/php-qrcode": "^6.0",
+        "endroid/qr-code": "^6.0",
+        "google/apiclient": "^2.19",
+        "guzzlehttp/guzzle": "^7.9",
+        "intervention/image": "3.11",
+        "intervention/image-laravel": "^1.5",
+        "jenssegers/agent": "^2.6",
+        "khanamiryan/qrcode-detector-decoder": "^2.0",
+        "laravel-lang/common": "^6.8",
+        "laravel/fortify": "^1.37",
+        "laravel/framework": "^12.0",
+        "laravel/horizon": "^5.32",
+        "laravel/pulse": "^1.7",
+        "laravel/reverb": "^1.11",
+        "laravel/sanctum": "^4.3",
+        "laravel/scout": "^11.4",
+        "laravel/socialite": "^5.17",
+        "laravel/tinker": "^2.10.1",
+        "league/flysystem": "^3.35",
+        "league/flysystem-aws-s3-v3": "^3.30",
+        "maatwebsite/excel": "^3.1",
+        "midtrans/midtrans-php": "*",
+        "nesbot/carbon": "^3.8",
+        "phpoffice/phpword": "^1.4",
+        "predis/predis": "^2.3",
+        "pusher/pusher-php-server": "^7.3",
+        "smalot/pdfparser": "^2.12",
+        "spatie/laravel-activitylog": "^4.12",
+        "spatie/laravel-backup": "^10.3",
+        "spatie/laravel-data": "^4.15",
+        "spatie/laravel-health": "^1.34",
+        "spatie/laravel-image-optimizer": "^1.8",
+        "spatie/laravel-medialibrary": "^11.23",
+        "spatie/laravel-permission": "^8.3",
+        "spatie/laravel-query-builder": "^6.3",
+        "spatie/pdf-to-image": "^1.2",
+        "spatie/pdf-to-text": "^1.54"
+    },
+
+    "require-dev": {
+        "barryvdh/laravel-debugbar": "^3.15",
+        "barryvdh/laravel-ide-helper": "^3.7",
+        "fakerphp/faker": "^1.23",
+        "larastan/larastan": "^3.1",
+        "laravel/pail": "^1.2.2",
+        "laravel/pint": "^1.29",
+        "laravel/sail": "^1.41",
+        "laravel/telescope": "^5.21",
+        "mockery/mockery": "^1.6",
+        "nunomaduro/collision": "^8.6",
+        "phpunit/phpunit": "^11.5.3",
+        "roave/security-advisories": "dev-latest"
+    },
+
+    "autoload": {
+        "psr-4": {
+            "App\\": "app/",
+            "Database\\Factories\\": "database/factories/",
+            "Database\\Seeders\\": "database/seeders/"
+        },
+        "files": [
+            "app/helpers.php"
+        ]
+    },
+
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
+
+    "scripts": {
+        "post-autoload-dump": [
+            "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
+            "@php artisan package:discover --ansi"
+        ],
+        "post-update-cmd": [
+            "@php artisan vendor:publish --tag=laravel-assets --ansi --force"
+        ],
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "post-create-project-cmd": [
+            "@php artisan key:generate --ansi",
+            "@php -r \"file_exists('database/database.sqlite') || touch('database/database.sqlite');\"",
+            "@php artisan migrate --graceful --ansi"
+        ],
+
+        "dev": [
+            "Composer\\Config::disableProcessTimeout",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite"
+        ],
+
+        "test": [
+            "@clear",
+            "@php artisan config:clear --ansi",
+            "@php artisan test"
+        ],
+        "test:parallel": [
+            "@clear",
+            "@php artisan test --parallel"
+        ],
+        "test:coverage": [
+            "@clear",
+            "@php artisan test --coverage --min=70"
+        ],
+
+        "lint": [
+            "pint --parallel"
+        ],
+        "lint:check": [
+            "pint --parallel --test"
+        ],
+
+        "analyse": [
+            "phpstan analyse --memory-limit=2G"
+        ],
+        "analyse:baseline": [
+            "phpstan analyse --memory-limit=2G --generate-baseline"
+        ],
+
+        "audit": [
+            "composer audit --format=table"
+        ],
+
+        "ide-helper": [
+            "@php artisan ide-helper:generate",
+            "@php artisan ide-helper:meta",
+            "@php artisan ide-helper:models --nowrite"
+        ],
+
+        "optimize": [
+            "@php artisan config:cache",
+            "@php artisan route:cache",
+            "@php artisan view:cache",
+            "@php artisan event:cache",
+            "@php artisan icons:cache"
+        ],
+        "optimize:clear": [
+            "@php artisan optimize:clear"
+        ],
+
+        "health": [
+            "@php artisan health:check --no-ansi"
+        ],
+
+        "backup": [
+            "@php artisan backup:run --only-db"
+        ],
+
+        "fresh": [
+            "@php artisan migrate:fresh --seed"
+        ],
+
+        "clear": [
+            "@php artisan optimize:clear"
+        ],
+
+        "post-deploy": [
+            "@php artisan down --render=\"errors::503\" --retry=60 || true",
+            "@php artisan migrate --force",
+            "@optimize",
+            "@php artisan queue:restart",
+            "@php artisan horizon:terminate || true",
+            "@php artisan up"
+        ]
+    },
+
+    "extra": {
+        "branch-alias": {
+            "dev-master": "12.x-dev",
+            "dev-main": "12.x-dev"
+        },
+        "laravel": {
+            "dont-discover": [
+                "laravel/fortify",
+                "laravel/passkeys"
+            ]
+        }
+    },
+
+    "config": {
+        "optimize-autoloader": true,
+        "preferred-install": "dist",
+        "sort-packages": true,
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true,
+            "php-http/discovery": true
+        },
+        "platform": {
+            "php": "8.3.0"
+        },
+        "platform-check": true,
+        "use-include-path": false,
+        "notify-on-install": true
+    },
+
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

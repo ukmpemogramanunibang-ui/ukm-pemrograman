@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+# ── Konfigurasi Diff (Agar review GitHub lebih enak dibaca) ──
+*.blade.php diff=html
+*.css diff=css
+*.html diff=html
+*.md diff=markdown
+*.php diff=php
+
+# ── Konfigurasi Line Endings (Mencegah Warning CRLF di Windows) ──
+*.blade.php text eol=lf
+*.php text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+
+# ── Abaikan file dari ekspor rilis (Opsional) ──
+/.github export-ignore
+CHANGELOG.md export-ignore
+.styleci.yml export-ignore

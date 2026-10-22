@@ -1,0 +1,141 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+
+class Notification extends Model
+{
+    protected $table = 'notifications';
+
+    protected $fillable = [
+        'user_id', 'title', 'message', 'data',
+        'source', 'category', 'priority',
+        'related_id', 'related_type', 'action_url',
+        'read_at', 'starred_at', 'archived_at',
+    ];
+
+    protected $casts = [
+        'data'        => 'array',
+        'read_at'     => 'datetime',
+        'starred_at'  => 'datetime',
+        'archived_at' => 'datetime',
+    ];
+
+    /* ---------- RELATIONS ---------- */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function related(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    /* ---------- SCOPES ---------- */
+    public function scopeUnread(Builder $q): Builder
+    {
+        return $q->whereNull('read_at');
+    }
+    public function scopeRead(Builder $q): Builder
+    {
+        return $q->whereNotNull('read_at');
+    }
+    public function scopeStarred(Builder $q): Builder
+    {
+        return $q->whereNotNull('starred_at');
+    }
+    public function scopeArchived(Builder $q): Builder
+    {
+        return $q->whereNotNull('archived_at');
+    }
+    public function scopeActive(Builder $q): Builder
+    {
+        return $q->whereNull('archived_at');
+    }
+    public function scopeAction(Builder $q): Builder
+    {
+        return $q->whereIn('priority', ['urgent', 'high'])->whereNull('read_at');
+    }
+    public function scopeForUser(Builder $q, $userId): Builder
+    {
+        return $q->where('user_id', $userId);
+    }
+
+    /* ---------- ACCESSORS ---------- */
+    public function getIsReadAttribute(): bool       { return ! is_null($this->read_at); }
+    public function getIsStarredAttribute(): bool    { return ! is_null($this->starred_at); }
+    public function getIsArchivedAttribute(): bool   { return ! is_null($this->archived_at); }
+    public function getIsUrgentAttribute(): bool     { return in_array($this->priority, ['urgent','high']); }
+
+    public function getPriorityColorAttribute(): string
+    {
+        return match ($this->priority) {
+            'urgent' => 'rose',
+            'high'   => 'amber',
+            'low'    => 'gray',
+            default  => 'violet',
+        };
+    }
+
+    public function getIconAttribute(): string
+    {
+        $map = [
+            'task.created'    => 'fa-plus-circle',
+            'task.deadline'   => 'fa-hourglass-half',
+            'task.overdue'    => 'fa-exclamation-triangle',
+            'task.submitted'  => 'fa-paper-plane',
+            'task.graded'     => 'fa-award',
+            'task.comment'    => 'fa-comment-dots',
+            'task.reminder'   => 'fa-bell',
+            'group.created'   => 'fa-folder-plus',
+            'group.member'    => 'fa-user-plus',
+            'system'          => 'fa-info-circle',
+        ];
+        return $map[$this->category] ?? 'fa-bell';
+    }
+
+    /* ---------- HELPERS ---------- */
+    public function markAsRead(): bool
+    {
+        if ($this->read_at) return true;
+        return $this->update(['read_at' => now()]);
+    }
+
+    public function toggleStar(): bool
+    {
+        return $this->update([
+            'starred_at' => $this->starred_at ? null : now(),
+        ]);
+    }
+
+    public function archive(): bool
+    {
+        return $this->update(['archived_at' => now()]);
+    }
+
+    public function getDeepLinkAttribute(): string
+    {
+        if ($this->action_url) return $this->action_url;
+
+        if ($this->related_type && $this->related_id) {
+            try {
+                $short = class_basename($this->related_type);
+                return match ($short) {
+                    'LmsItem', 'Assignment' =>
+                        route('owner.lms.items.show', $this->related_id),
+                    'LmsGroup', 'Group' =>
+                        route('owner.lms.groups.show', $this->related_id),
+                    'LmsSubmission', 'Submission' =>
+                        route('owner.lms.submissions.show', $this->related_id),
+                    default => '#',
+                };
+            } catch (\Throwable $e) { return '#'; }
+        }
+        return '#';
+    }
+}
