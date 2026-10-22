@@ -1,4 +1,3 @@
-# ── Laravel Default ──
 /node_modules
 /public/build
 /public/hot
@@ -28,6 +27,7 @@ yarn-error.log
 *.BROKEN_*
 routes_backup/
 migrations_backup/
+app_backup/
 debug-routes.txt
 route_list_sebelum.*
 
@@ -42,12 +42,3 @@ test-callback.ps1
 
 # ── Typo & File Rusak ──
 *.php.php
-resources/views/auth/a
-resources/views/layouts/.blade.php
-resources/views/partials/roles/owner/s
-resources/views/ketua/kelompok.blade.phP
-resources/views/owner/management/qr/pengurus index qr
-
-# ── Gambar Debug ──
-public/images/Screenshot *.png
-public/images/WhatsApp *.jpeg
