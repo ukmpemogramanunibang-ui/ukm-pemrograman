@@ -1,1 +1,0 @@
-@include('owner.management.archive.graduated', ['title' => $title ?? 'Riwayat Arsip'])
